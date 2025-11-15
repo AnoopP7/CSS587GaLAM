@@ -1,0 +1,34 @@
+# GaLAM
+
+C++ implementation of the **GaLAM** algorithm from the paper:
+
+**"GaLAM: Two-Stage Outlier Detection Algorithm"** (IEEE Access 2025)
+Paper: [https://ieeexplore.ieee.org/document/10967479](https://ieeexplore.ieee.org/document/10967479)
+
+## Overview
+
+### Key Features
+
+## Installation
+
+### Requirements
+
+- OpenCV
+
+### Build
+
+## Usage
+
+### Running the program
+
+```bash
+# After building
+cd build
+
+# Run with sample input
+./Galam ../samples/image1.jpg ../samples/image2.jpg
+```
+
+**Output:**
+
+## Authors
