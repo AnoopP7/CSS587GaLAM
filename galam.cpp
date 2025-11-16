@@ -1,4 +1,4 @@
-#include "galam.hpp"
+#include "galam.h"
 
 #include <iostream>
 

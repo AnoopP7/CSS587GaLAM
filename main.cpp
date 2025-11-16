@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include "galam.hpp"
+#include "galam.h"
 
 int main(int argc, char** argv) {
     std::cout << "========================================" << std::endl;
