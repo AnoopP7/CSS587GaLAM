@@ -4,16 +4,26 @@
 #include <opencv2/core.hpp>
 #include <opencv2/features2d.hpp>
 #include <vector>
+#include <string>
 
 namespace galam {
 
 class GaLAM {
 public:
-    struct Parameters {
-        // TODO: add tunable parameters here (thresholds, RANSAC settings)
+    struct InputParameters {
+        double ra;
+        double rt_threshold;
+        double radius;
+        double epsilon;
+        InputParameters()
+        : ra(100.0),
+          rt_threshold(0.8),
+          radius(50.0),
+          epsilon(1e-6)
+    {}
     };
 
-    explicit GaLAM(const Parameters& params = Parameters());
+    explicit GaLAM(const InputParameters& params = InputParameters());
 
     // Main detection pipeline (stub for now
     std::vector<cv::DMatch> detectOutliers(
@@ -27,7 +37,28 @@ public:
     ) const;
 
 private:
-    Parameters params_;
+    InputParameters params_;
+
+    struct ScoredMatch {
+        cv::DMatch match;
+        double confidence;
+    };
+
+    // Seed point selection
+    std::vector<ScoredMatch> filterBidirectionalNN(
+        const cv::Mat& descriptors1,
+        const cv::Mat& descriptors2
+    ) const;
+
+    void assignConfidenceScore(
+        std::vector<ScoredMatch>& matches
+    ) const;
+
+    std::vector<ScoredMatch> selectSeedPoints(
+        const std::vector<ScoredMatch>& matches,
+        const std::vector<cv::KeyPoint>& keypoints1,
+        const cv::Size& imageSize1
+    ) const;
 };
 
 } // namespace galam

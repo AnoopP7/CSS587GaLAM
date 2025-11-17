@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
 
     // Apply GaLAM (skeleton version)
     std::cout << "\nApplying GaLAM filtering..." << std::endl;
-    galam::GaLAM::Parameters params;
+    galam::GaLAM::InputParameters params;
     galam::GaLAM galam(params);
 
     std::vector<cv::DMatch> filteredMatches = galam.detectOutliers(
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
     std::cout << "\n========================================" << std::endl;
     std::cout << "Results:" << std::endl;
     std::cout << "  Initial matches:  " << initialMatches.size() << std::endl;
-    std::cout << "  Filtered matches: " << filteredMatches.size() << std::endl;
+    std::cout << "  Seed points: " << filteredMatches.size() << std::endl;
 
     double reductionPercent = 0.0;
     if (!initialMatches.empty()) {
