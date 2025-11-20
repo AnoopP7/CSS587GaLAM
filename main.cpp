@@ -66,8 +66,10 @@ int main(int argc, char** argv) {
 
     // Apply GaLAM (skeleton version)
     std::cout << "\nApplying GaLAM filtering..." << std::endl;
-    galam::GaLAM::InputParameters params;
-    galam::GaLAM galam(params);
+    //galam::GaLAM::InputParameters params;
+    //galam::GaLAM galam(params);
+    GaLAM::InputParameters params;
+    GaLAM galam(params);
 
     std::vector<cv::DMatch> filteredMatches = galam.detectOutliers(
         keypoints1, keypoints2,

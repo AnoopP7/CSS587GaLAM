@@ -6,17 +6,17 @@
 #include <vector>
 #include <string>
 
-namespace galam {
+//namespace galam {
 
 class GaLAM {
 public:
     struct InputParameters {
-        double ra;
+        double ratio;
         double rt_threshold;
         double radius;
         double epsilon;
         InputParameters()
-        : ra(100.0),
+        : ratio(100.0),
           rt_threshold(0.8),
           radius(50.0),
           epsilon(1e-6)
@@ -61,6 +61,6 @@ private:
     ) const;
 };
 
-} // namespace galam
+//} // namespace galam
 
 #endif // GALAM_H

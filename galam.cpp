@@ -6,7 +6,7 @@
 #include <iostream>
 #include <cmath>
 
-namespace galam {
+//namespace galam {
 
 GaLAM::GaLAM(const InputParameters& params)
     : params_(params) {}
@@ -18,39 +18,40 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
 {
     std::vector<std::vector<cv::DMatch>> knn12, knn21;
 
+    // If slow, FLANN instead
     cv::BFMatcher matcher(cv::NORM_L2);
     matcher.knnMatch(descriptors1, descriptors2, knn12, 2);
     matcher.knnMatch(descriptors2, descriptors1, knn21, 2);
 
-    std::vector<ScoredMatch> good;
+    std::vector<ScoredMatch> goodMatches;
 
     for (int i = 0; i < static_cast<int>(knn12.size()); ++i) {
         if (knn12[i].size() < 2) continue;
 
-        const cv::DMatch& m1 = knn12[i][0];
-        const cv::DMatch& m2 = knn12[i][1];
+        const cv::DMatch& match1 = knn12[i][0];
+        const cv::DMatch& match2 = knn12[i][1];
 
         // Ratio test
-        if (m1.distance >= params_.rt_threshold * m2.distance)
+        if (match1.distance >= params_.rt_threshold * match2.distance)
             continue;
 
-        int q = m1.queryIdx;
-        int t = m1.trainIdx;
+        int query = match1.queryIdx;
+        int train = match1.trainIdx;
 
-        if (t < 0 || t >= static_cast<int>(knn21.size())) continue;
-        if (knn21[t].empty()) continue;
+        if (train < 0 || train >= static_cast<int>(knn21.size())) continue;
+        if (knn21[train].empty()) continue;
 
-        const cv::DMatch& back = knn21[t][0];
-        if (back.trainIdx != q) continue;
+        const cv::DMatch& back = knn21[train][0];
+        if (back.trainIdx != query) continue;
 
-        ScoredMatch sm;
-        sm.match = m1;
-        sm.confidence = 0.0;
-        good.push_back(sm);
+        ScoredMatch scored;
+        scored.match = match1;
+        scored.confidence = 0.0;
+        goodMatches.push_back(scored);
     }
 
-    std::cout << "GaLAM: Bidirectional NN matches = " << good.size() << std::endl;
-    return good;
+    std::cout << "GaLAM: Bidirectional NN matches = " << goodMatches.size() << std::endl;
+    return goodMatches;
 }
 
 // 2) Assign confidence score (reciprocal of distance)
@@ -58,9 +59,9 @@ void GaLAM::assignConfidenceScore(
     std::vector<ScoredMatch>& matches
 ) const
 {
-    for (auto& sm : matches) {
-        double d = std::max(static_cast<double>(sm.match.distance), 1e-6);
-        sm.confidence = 1.0 / d;
+    for (auto& scored : matches) {
+        double distance = std::max(static_cast<double>(scored.match.distance), 1e-6);
+        scored.confidence = 1.0 / distance;
     }
 }
 
@@ -73,13 +74,13 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectSeedPoints(
 {
     if (matches.empty()) return {};
 
-    double R;
-    if (params_.ra > 0.0) {
+    double radius;
+    if (params_.ratio > 0.0) {
         double area = static_cast<double>(imageSize1.width) *
                       static_cast<double>(imageSize1.height);
-        R = std::sqrt(area / (CV_PI * params_.ra));
+        radius = std::sqrt(area / (CV_PI * params_.ratio));
     } else {
-        R = params_.radius;
+        radius = params_.radius;
     }
 
     // Sort by confidence descending
@@ -97,23 +98,23 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectSeedPoints(
     for (int idx : order) {
         if (suppressed[idx]) continue;
 
-        const auto& mSeed = matches[idx];
-        const cv::Point2f& p = keypoints1[mSeed.match.queryIdx].pt;
+        const auto& matchSeed = matches[idx];
+        const cv::Point2f& point = keypoints1[matchSeed.match.queryIdx].pt;
 
         // suppress neighbors around this seed
         for (size_t j = 0; j < matches.size(); ++j) {
             if (suppressed[j]) continue;
-            const auto& m = matches[j];
-            const cv::Point2f& q = keypoints1[m.match.queryIdx].pt;
+            const auto& nextMatch = matches[j];
+            const cv::Point2f& queryPoint = keypoints1[nextMatch.match.queryIdx].pt;
 
-            double dx = p.x - q.x;
-            double dy = p.y - q.y;
-            if (std::sqrt(dx * dx + dy * dy) <= R) {
+            double dx = point.x - queryPoint.x;
+            double dy = point.y - queryPoint.y;
+            if (std::sqrt(dx * dx + dy * dy) <= radius) {
                 suppressed[j] = true;
             }
         }
 
-        seeds.push_back(mSeed);
+        seeds.push_back(matchSeed);
     }
 
     std::cout << "GaLAM: Seed points selected = " << seeds.size() << std::endl;
@@ -150,8 +151,8 @@ std::vector<cv::DMatch> GaLAM::detectOutliers(
     // Convert seeds to plain cv::DMatch for the outside world
     std::vector<cv::DMatch> seedMatches;
     seedMatches.reserve(seeds.size());
-    for (const auto& s : seeds) {
-        seedMatches.push_back(s.match);
+    for (const auto& seed : seeds) {
+        seedMatches.push_back(seed.match);
     }
 
     std::cout << "GaLAM: Returning " << seedMatches.size()
@@ -163,4 +164,4 @@ std::vector<cv::DMatch> GaLAM::detectOutliers(
     return seedMatches;
 }
 
-} // namespace galam
+//} // namespace galam
