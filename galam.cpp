@@ -11,6 +11,17 @@
 GaLAM::GaLAM(const InputParameters& params)
     : params_(params) {}
 
+std::vector<GaLAM::ScoredMatch> GaLAM::selectSeedPoints(
+    const std::vector<ScoredMatch>& matches,
+    const std::vector<cv::KeyPoint>& keypoints1,
+    const cv::Mat& descriptors1,
+    const cv::Mat& descriptors2,
+    const cv::Size& imageSize1
+) const
+{
+    return std::vector<ScoredMatch>();
+}
+
 std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
     const cv::Mat& descriptors1,
     const cv::Mat& descriptors2
@@ -66,7 +77,8 @@ void GaLAM::assignConfidenceScore(
 }
 
 // 3) Select seed points using non-maximum suppression
-std::vector<GaLAM::ScoredMatch> GaLAM::selectSeedPoints(
+// TODO: It's possible that the second image needs this too, if R2 should be used for NMS for the second image
+std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
     const std::vector<ScoredMatch>& matches,
     const std::vector<cv::KeyPoint>& keypoints1,
     const cv::Size& imageSize1
@@ -79,9 +91,9 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectSeedPoints(
         double area = static_cast<double>(imageSize1.width) *
                       static_cast<double>(imageSize1.height);
         radius = std::sqrt(area / (CV_PI * params_.ratio));
-    } else {
-        radius = params_.radius;
-    }
+    } /*else {
+        radius = params_.radius1;
+    }*/
 
     // Sort by confidence descending
     std::vector<int> order(matches.size());
@@ -121,6 +133,57 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectSeedPoints(
     return seeds;
 }
 
+std::vector<GaLAM::ScoredMatch> GaLAM::localNeighborhoodSelection(
+    const std::vector<ScoredMatch>& matches, 
+    const std::vector<ScoredMatch>& seedPoints, 
+    const std::vector<cv::KeyPoint>& keypoints1, 
+    const std::vector<cv::KeyPoint>& keypoints2,
+    const cv::Size& imageSize1,
+    const cv::Size& imageSize2
+) const
+{
+    std::vector<ScoredMatch> filtered = filterByDistance(matches, seedPoints, keypoints1, keypoints2);
+
+    filtered = filterByScaleRotation(filtered, seedPoints, keypoints1, keypoints2);
+
+    filtered = filterByImageScale(filtered, seedPoints, keypoints1, keypoints2, imageSize1, imageSize2);
+
+    return filtered;
+}
+
+// Actually assuming that R1 and R2 are arbitrary, and different for each correspondence
+std::vector<GaLAM::ScoredMatch> GaLAM::filterByDistance(
+    const std::vector<ScoredMatch>& matches, 
+    const std::vector<ScoredMatch>& seedPoints, 
+    const std::vector<cv::KeyPoint>& keypoints1, 
+    const std::vector<cv::KeyPoint>& keypoints2
+) const
+{
+    return std::vector<ScoredMatch>();
+}
+
+std::vector<GaLAM::ScoredMatch> GaLAM::filterByScaleRotation(
+    const std::vector<ScoredMatch>& matches, 
+    const std::vector<ScoredMatch>& seedPoints, 
+    const std::vector<cv::KeyPoint>& keypoints1, 
+    const std::vector<cv::KeyPoint>& keypoints2
+) const
+{
+    return std::vector<ScoredMatch>();
+}
+
+// Actually assuming that R1 and R2 are arbitrary, and different for each correspondence
+std::vector<GaLAM::ScoredMatch> GaLAM::filterByImageScale(
+    const std::vector<ScoredMatch>& matches, 
+    const std::vector<ScoredMatch>& seedPoints, 
+    const std::vector<cv::KeyPoint>& keypoints1, 
+    const std::vector<cv::KeyPoint>& keypoints2, 
+    const cv::Size& imageSize1, 
+    const cv::Size& imageSize2
+) const
+{
+}
+
 // Main detection pipeline (stub for now)
 std::vector<cv::DMatch> GaLAM::detectOutliers(
     const std::vector<cv::KeyPoint>& keypoints1,
@@ -146,7 +209,7 @@ std::vector<cv::DMatch> GaLAM::detectOutliers(
     assignConfidenceScore(filtered);
 
     // 3) Seed selection with non-maximum suppression
-    std::vector<ScoredMatch> seeds = selectSeedPoints(filtered, keypoints1, imageSize1);
+    std::vector<ScoredMatch> seeds = selectPoints(filtered, keypoints1, imageSize1);
 
     // Convert seeds to plain cv::DMatch for the outside world
     std::vector<cv::DMatch> seedMatches;
