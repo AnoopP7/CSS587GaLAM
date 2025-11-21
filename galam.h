@@ -13,12 +13,10 @@ public:
     struct InputParameters {
         double ratio;
         double rt_threshold;
-        /*double radius1;*/
         double epsilon;
         InputParameters()
         : ratio(100.0),
           rt_threshold(0.8),
-          /*radius1(50.0),*/
           epsilon(1e-6)
     {}
     };

@@ -76,7 +76,8 @@ void GaLAM::assignConfidenceScore(
 }
 
 // 3) Select seed points using non-maximum suppression
-// TODO: It's possible that the second image needs this too, if R2 should be used for NMS for the second image
+// This R is global for the whole image pair.
+// It is used ONLY for NMS—NOT the local neighborhood radius (R1, R2).
 std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
     const std::vector<ScoredMatch>& matches,
     const std::vector<cv::KeyPoint>& keypoints1,
@@ -85,15 +86,28 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
 {
     if (matches.empty()) return {};
 
-    double radius;
-    if (params_.ratio > 0.0) {
-        double area = static_cast<double>(imageSize1.width) *
-                      static_cast<double>(imageSize1.height);
-        radius = std::sqrt(area / (CV_PI * params_.ratio));
-    } /*else {
-        radius = params_.radius1;
-    }*/
+    // ----------------------------------------------------------------------
+    // Compute GaLAM global NMS radius R
+    //
+    // Paper (Implementation details):
+    //     "For the first stage of our approach, we define the radius R 
+    //.     for seed point selection to maintain a fixed ratio ra between
+    //      the area of the non-maximum suppression circle πR^2 and the area 
+    //      of the image wh. Specifically, we set ra=100 and calculate R 
+    //.     as follows R = sqrt(wh / (π r_a))"
+    //
+    // Meaning:
+    //     - The NMS region area πR² = total_image_area / r_a
+    //     - Ensures seed points are evenly distributed spatially
+    // ----------------------------------------------------------------------
+    double globalSeedRadius_R;
+    {
+        double imageArea = static_cast<double>(imageSize1.width) *
+                           static_cast<double>(imageSize1.height);
+        globalSeedRadius_R = std::sqrt(imageArea / (CV_PI * params_.ratio));
+    }
 
+    // Sort indices by confidence descending
     std::vector<int> sortedIndices(matches.size());
     std::iota(sortedIndices.begin(), sortedIndices.end(), 0);
     std::sort(sortedIndices.begin(), sortedIndices.end(),
@@ -105,12 +119,17 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
     std::vector<ScoredMatch> seedPoints;
     seedPoints.reserve(matches.size() / 4);
 
+    // ----------------------------------------------------------------------
+    // Non-maximum suppression:
+    // Keep the highest-confidence match, suppress all within radius R.
+    // ----------------------------------------------------------------------
     for (int idx : sortedIndices) {
         if (isSuppressed[idx]) continue;
 
         const auto& seedMatch = matches[idx];
         const cv::Point2f& seedPoint = keypoints1[seedMatch.match.queryIdx].pt;
 
+        // Suppress all matches inside the NMS radius
         for (size_t j = 0; j < matches.size(); ++j) {
             if (isSuppressed[j]) continue;
 
@@ -119,7 +138,7 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
 
             double dx = seedPoint.x - otherPoint.x;
             double dy = seedPoint.y - otherPoint.y;
-            if (std::sqrt(dx * dx + dy * dy) <= radius) {
+            if (std::sqrt(dx * dx + dy * dy) <= globalSeedRadius_R) {
                 isSuppressed[j] = true;
             }
         }
