@@ -1,5 +1,4 @@
 #include "galam.h"
-
 #include <opencv2/features2d.hpp>
 #include <numeric>
 #include <algorithm>
@@ -159,6 +158,19 @@ std::vector<GaLAM::ScoredMatch> GaLAM::localNeighborhoodSelection(
     const cv::Size& imageSize2
 ) const
 {
+    double globalSeedRadius_R1;
+    {
+        double imageArea = static_cast<double>(imageSize1.width) *
+                           static_cast<double>(imageSize1.height);
+        globalSeedRadius_R1 = std::sqrt(imageArea / (CV_PI * params_.ratio));
+    }
+
+    double globalSeedRadius_R2;
+    {
+        double imageArea = static_cast<double>(imageSize2.width) *
+                           static_cast<double>(imageSize2.height);
+        globalSeedRadius_R2 = std::sqrt(imageArea / (CV_PI * params_.ratio));
+    }
     std::vector<ScoredMatch> filtered = filterByDistance(matches, seedPoints, keypoints1, keypoints2);
 
     filtered = filterByScaleRotation(filtered, seedPoints, keypoints1, keypoints2);
@@ -168,38 +180,162 @@ std::vector<GaLAM::ScoredMatch> GaLAM::localNeighborhoodSelection(
     return filtered;
 }
 
+// Assuming R1 = R image size 1 
+// Assuming R2 = R image size 2
 // Actually assuming that R1 and R2 are arbitrary, and different for each correspondence
-std::vector<GaLAM::ScoredMatch> GaLAM::filterByDistance(
-    const std::vector<ScoredMatch>& matches, 
-    const std::vector<ScoredMatch>& seedPoints, 
-    const std::vector<cv::KeyPoint>& keypoints1, 
-    const std::vector<cv::KeyPoint>& keypoints2
-) const
-{
-    return std::vector<ScoredMatch>();
-}
+// std::vector<GaLAM::ScoredMatch> GaLAM::filterByDistance(
+//     const std::vector<ScoredMatch>& matches, 
+//     const std::vector<ScoredMatch>& seedPoints, 
+//     const std::vector<cv::KeyPoint>& keypoints1, 
+//     const std::vector<cv::KeyPoint>& keypoints2,
+//     const double radius1,
+//     const double radius2
+// ) const
+// {
+//     // Distance beetween the first keypoints of the match and the seed point
+//     // seedpoints correspondences
+//     for (const auto& seed : seedPoints) {
+//         // calculate index in image 1
+//         // calculate index in image 2
+//     }
+//     return std::vector<ScoredMatch>();
+// }
 
-std::vector<GaLAM::ScoredMatch> GaLAM::filterByScaleRotation(
-    const std::vector<ScoredMatch>& matches, 
-    const std::vector<ScoredMatch>& seedPoints, 
-    const std::vector<cv::KeyPoint>& keypoints1, 
-    const std::vector<cv::KeyPoint>& keypoints2
-) const
-{
-    return std::vector<ScoredMatch>();
-}
+// std::vector<GaLAM::ScoredMatch> GaLAM::filterByScaleRotation(
+//     const std::vector<ScoredMatch>& matches, 
+//     const std::vector<ScoredMatch>& seedPoints, 
+//     const std::vector<cv::KeyPoint>& keypoints1, 
+//     const std::vector<cv::KeyPoint>& keypoints2
+// ) const
+// {
+//     return std::vector<ScoredMatch>();
+// }
 
-// Actually assuming that R1 and R2 are arbitrary, and different for each correspondence
-std::vector<GaLAM::ScoredMatch> GaLAM::filterByImageScale(
+// // Actually assuming that R1 and R2 are arbitrary, and different for each correspondence
+// std::vector<GaLAM::ScoredMatch> GaLAM::filterByImageScale(
+//     const std::vector<ScoredMatch>& matches, 
+//     const std::vector<ScoredMatch>& seedPoints, 
+//     const std::vector<cv::KeyPoint>& keypoints1, 
+//     const std::vector<cv::KeyPoint>& keypoints2, 
+//     const cv::Size& imageSize1, 
+//     const cv::Size& imageSize2,
+//     const double radius1,
+//     const double radius2
+// ) const
+// {
+// }
+
+std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
     const std::vector<ScoredMatch>& matches, 
     const std::vector<ScoredMatch>& seedPoints, 
     const std::vector<cv::KeyPoint>& keypoints1, 
     const std::vector<cv::KeyPoint>& keypoints2, 
     const cv::Size& imageSize1, 
     const cv::Size& imageSize2
-) const
+) const 
 {
+    // each seed point will have a set of indices of matches that are in its neighborhood
+    std::vector<std::set<int>> neighborhoods;
+
+    // early exit if no matches or no seed points
+    if (matches.empty() || seedPoints.empty()) {
+        return neighborhoods;
+    }
+
+    // compute R1_base = sqrt(wh / (π * ra))
+    double imageArea = static_cast<double>(imageSize1.width) *
+                       static_cast<double>(imageSize1.height);
+
+    double R1_base = std::sqrt(imageArea / (CV_PI * params_.ratio));
+
+    // prepare output to make sure each seed gets one neighborhood set
+    neighborhoods.resize(seedPoints.size());
+
+    // Outer loop:
+    // loop through each seed point
+    for (size_t s = 0; s < seedPoints.size(); ++s) {
+
+        const ScoredMatch& seed = seedPoints[s];
+
+        int seedIdxImg1 = seed.match.queryIdx;
+        int seedIdxImg2 = seed.match.trainIdx;
+
+        const cv::KeyPoint& seedKP1 = keypoints1[seedIdxImg1];
+        const cv::KeyPoint& seedKP2 = keypoints2[seedIdxImg2];
+
+        // seed scale ratio σ_S = σ2 / σ1
+        double sigma1S = std::max((double)seedKP1.size, 1e-6);
+        double sigma2S = std::max((double)seedKP2.size, 1e-6);
+        double sigmaSeed = sigma2S / sigma1S;
+
+        // compute radii R1_i and R2_i
+        double R1 = R1_base;
+        double R2 = R1 / std::max(sigmaSeed, 1e-6);
+
+        // seed rotation α_S
+        double alphaSeed = seedKP2.angle - seedKP1.angle;
+        alphaSeed = std::fmod(alphaSeed + 540.0, 360.0) - 180.0;
+
+        // Inner loop:
+        // loop through all candidate matches
+        for (size_t i = 0; i < matches.size(); ++i) {
+
+            const ScoredMatch& cand = matches[i];
+
+            int idx1 = cand.match.queryIdx;
+            int idx2 = cand.match.trainIdx;
+
+            const cv::KeyPoint& candKP1 = keypoints1[idx1];
+            const cv::KeyPoint& candKP2 = keypoints2[idx2];
+
+            //1) Distance constraint (Eq.1)
+            double dx1 = candKP1.pt.x - seedKP1.pt.x;
+            double dy1 = candKP1.pt.y - seedKP1.pt.y;
+            double dist1 = std::sqrt(dx1*dx1 + dy1*dy1);
+
+            double dx2 = candKP2.pt.x - seedKP2.pt.x;
+            double dy2 = candKP2.pt.y - seedKP2.pt.y;
+            double dist2 = std::sqrt(dx2*dx2 + dy2*dy2);
+
+            bool distanceOK =
+                (dist1 <= params_.lambda1 * R1) &&
+                (dist2 <= params_.lambda1 * R2);
+
+            if (!distanceOK) continue;
+
+            //2) Rotation + scale constraint (Eq.2)
+            double alphaCand = candKP2.angle - candKP1.angle;
+            alphaCand = std::fmod(alphaCand + 540.0, 360.0) - 180.0;
+
+            // rotation difference
+            double dAlpha = std::fabs(alphaSeed - alphaCand);
+            if (dAlpha > 180.0) dAlpha = 360.0 - dAlpha;
+
+            // check rotation threshold
+            bool rotationOK = (dAlpha <= params_.tAlpha);
+
+            // scale ratio σ_C = σ2 / σ1
+            double sigma1 = std::max((double)candKP1.size, 1e-6);
+            double sigma2 = std::max((double)candKP2.size, 1e-6);
+            double sigmaCand = sigma2 / sigma1;
+
+            // log scale difference
+            double logScaleDiff = std::fabs(std::log(sigmaSeed / sigmaCand));
+            bool scaleOK = (logScaleDiff <= params_.tSigma);
+
+            //3) Image-scale consistency (it is always true for now)
+            // We can implement image-scale consistency check based on image dimensions
+            bool imageScaleOK = true;
+
+            if (distanceOK && rotationOK && scaleOK && imageScaleOK) {
+                neighborhoods[s].insert((int)i);
+            }
+        }
+    }
+
+    return neighborhoods;
 }
+
 
 // Main detection pipeline (stub for now)
 std::vector<cv::DMatch> GaLAM::detectOutliers(
