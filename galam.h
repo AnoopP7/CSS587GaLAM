@@ -5,6 +5,7 @@
 #include <opencv2/features2d.hpp>
 #include <vector>
 #include <string>
+#include <set>
 
 //namespace galam {
 
@@ -20,7 +21,7 @@ public:
         InputParameters()
         : ratio(100.0),
           rt_threshold(0.8),
-          epsilon(1e-6)
+          epsilon(1e-6),
           // lamba could be different values
           lambda1(4.0), lambda2(2.0), lambda3(0.8)
     {}
@@ -71,6 +72,9 @@ private:
         const std::vector<cv::KeyPoint>& keypoints1,
         const cv::Size& imageSize1
     ) const;
+
+    // Helper function for Local Neighborhood Selection
+    double computeBaseRadius(const cv::Size& imageSize) const;
 
     // Local neighborhood selection
     std::vector<std::set<int>> localNeighborhoodSelection(
