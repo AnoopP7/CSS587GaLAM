@@ -32,8 +32,8 @@ public:
 
     // Main detection pipeline (stub for now
     std::vector<cv::DMatch> detectOutliers(
-        const std::vector<cv::KeyPoint>& keypoints1,
-        const std::vector<cv::KeyPoint>& keypoints2,
+        std::vector<cv::KeyPoint>& keypoints1,
+        std::vector<cv::KeyPoint>& keypoints2,
         const cv::Mat& descriptors1,
         const cv::Mat& descriptors2,
         const std::vector<cv::DMatch>& candidateMatches,
