@@ -30,8 +30,14 @@ public:
 
     explicit GaLAM(const InputParameters& params = InputParameters());
 
+    struct StageResults {
+        std::vector<cv::DMatch> seedMatches;
+        std::vector<cv::DMatch> stage1Matches;
+        std::vector<cv::DMatch> finalMatches;
+    };
+
     // Main detection pipeline (stub for now
-    std::vector<cv::DMatch> detectOutliers(
+    StageResults detectOutliers(
         std::vector<cv::KeyPoint>& keypoints1,
         std::vector<cv::KeyPoint>& keypoints2,
         const cv::Mat& descriptors1,

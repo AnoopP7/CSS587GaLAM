@@ -595,8 +595,7 @@ void GaLAM::localAffineVerification(
     affineVerification(matches, seedPoints, keypoints1, keypoints2, neighborhoods, imageSize1, imageSize2);
 }
 
-// Main detection pipeline (stub for now)
-std::vector<cv::DMatch> GaLAM::detectOutliers(
+GaLAM::StageResults GaLAM::detectOutliers(
     std::vector<cv::KeyPoint>& keypoints1,
     std::vector<cv::KeyPoint>& keypoints2,
     const cv::Mat& descriptors1,
@@ -606,32 +605,50 @@ std::vector<cv::DMatch> GaLAM::detectOutliers(
     const cv::Size& imageSize2
 ) const
 {
+    StageResults results;
     std::cout << "GaLAM: Processing " << candidateMatches.size()
               << " candidate matches..." << std::endl;
 
-    
-
-    //std::cout << "GaLAM: Returning " << seedMatches.size()
-    //          << " seed matches (Stage 1 only)" << std::endl;
-
-    // TODO: Stage 1 - Local affine verification
+    // Stage 1: Local affine verification
     std::vector<ScoredMatch> seedPoints;
     std::vector<std::set<int>> neighborhoods;
     std::vector<ScoredMatch> matches;
 
-    localAffineVerification(keypoints1, keypoints2, descriptors1, descriptors2, imageSize1, imageSize2, seedPoints, neighborhoods, matches);
-     
-    // TODO: Stage 2 - Global geometric consistency
+    localAffineVerification(keypoints1, keypoints2, descriptors1, descriptors2, 
+                            imageSize1, imageSize2, seedPoints, neighborhoods, matches);
 
-
-    // Convert seeds to plain cv::DMatch for the outside world
-    std::vector<cv::DMatch> seedMatches;
-    seedMatches.reserve(seedPoints.size());
+    // Store seed matches for visualization
     for (const auto& seed : seedPoints) {
-        seedMatches.push_back(seed.match);
+        results.seedMatches.push_back(seed.match);
     }
 
-    return seedMatches;
+    std::cout << "GaLAM: Built " << neighborhoods.size() 
+              << " local neighborhoods" << std::endl;
+
+    // Collect all unique inlier indices from neighborhoods
+    std::set<int> inlierIndices;
+    for (size_t s = 0; s < neighborhoods.size(); ++s) {
+        for (int idx : neighborhoods[s]) {
+            inlierIndices.insert(idx);
+        }
+    }
+    
+    std::cout << "GaLAM: Stage 1 produced " << inlierIndices.size() 
+              << " unique inlier candidates" << std::endl;
+
+    // Convert inlier indices to cv::DMatch
+    for (int idx : inlierIndices) {
+        results.stage1Matches.push_back(matches[idx].match);
+    }
+
+    std::cout << "GaLAM: Returning " << results.stage1Matches.size()
+              << " matches after Stage 1 (Local Affine Matching)" << std::endl;
+
+    results.finalMatches = results.stage1Matches;
+
+    // TODO: Stage 2 - Global geometric consistency
+
+    return results;
 }
 
 //} // namespace galam

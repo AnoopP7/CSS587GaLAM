@@ -1,6 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp>
 #include <iostream>
+#include <iomanip>
 #include <vector>
 
 #include "galam.h"
@@ -61,50 +62,20 @@ int main(int argc, char** argv) {
     cv::BFMatcher matcher(cv::NORM_L2);
     std::vector<cv::DMatch> initialMatches;
     matcher.match(descriptors1, descriptors2, initialMatches);
-
     std::cout << "  Initial matches: " << initialMatches.size() << std::endl;
 
-    // Apply GaLAM (skeleton version)
+    // Apply GaLAM
     std::cout << "\nApplying GaLAM filtering..." << std::endl;
-    //galam::GaLAM::InputParameters params;
-    //galam::GaLAM galam(params);
     GaLAM::InputParameters params;
     GaLAM galam(params);
 
-    std::vector<cv::DMatch> filteredMatches = galam.detectOutliers(
+    GaLAM::StageResults results = galam.detectOutliers(
         keypoints1, keypoints2,
         descriptors1, descriptors2,
         initialMatches,
         cv::Size(img1.cols, img1.rows),
         cv::Size(img2.cols, img2.rows)
     );
-
-    std::cout << "\n========================================" << std::endl;
-    std::cout << "Results:" << std::endl;
-    std::cout << "  Initial matches:  " << initialMatches.size() << std::endl;
-    std::cout << "  Seed points: " << filteredMatches.size() << std::endl;
-
-    double reductionPercent = 0.0;
-    if (!initialMatches.empty()) {
-        reductionPercent =
-            100.0 * (static_cast<double>(initialMatches.size() - filteredMatches.size())
-                     / static_cast<double>(initialMatches.size()));
-    }
-
-    std::cout << "  Reduction: " << reductionPercent << "%" << std::endl;
-    std::cout << "========================================" << std::endl;
-
-    // Visualization
-    cv::Mat imgMatches;
-    cv::drawMatches(img1, keypoints1, img2, keypoints2,
-                    filteredMatches, imgMatches);
-
-    const std::string outputPath = "matches_output.jpg";
-    cv::imwrite(outputPath, imgMatches);
-    std::cout << "\nVisualization saved to: " << outputPath << std::endl;
-
-    // TODO: Run AdaLam
-    // TODO: Compare results
 
     return 0;
 }
