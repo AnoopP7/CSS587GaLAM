@@ -328,10 +328,13 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
 
             // 2) Rotation constraint (Eq.2)
             // rotation constraint
+            // Paper states: |α^Si - α^p| ≤ tα
+            // Both alphaCand and alphaSeed are already normalized to [-180, 180),
+            // their difference must also be normalized to handle wraparound.
             // compute candidate match relative rotation
             double alphaCand = normalizeAngle(kp2.angle - kp1.angle);
             // absolute difference in rotation between candidate and seed
-            double dAlpha    = std::fabs(alphaCand - alphaSeed);
+            double dAlpha = std::fabs(normalizeAngle(alphaCand - alphaSeed));
 
             // if the rotation difference is too large, reject this candidate
             if (dAlpha > tAlpha) continue;
