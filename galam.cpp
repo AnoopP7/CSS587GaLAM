@@ -273,6 +273,7 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
 
     // precompute base radius R1
     double R1 = computeBaseRadius(imageSize1);
+    double R2 = computeBaseRadius(imageSize2);
     // allocate one neighborhood per seed match
     neighborhoods.resize(seedPoints.size());
 
@@ -294,8 +295,8 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
         double sigma1Seed = std::max(static_cast<double>(kp1Seed.size), 1e-6);
         double sigma2Seed = std::max(static_cast<double>(kp2Seed.size), 1e-6);
         double sigmaSeed  = sigma2Seed / sigma1Seed;
-        // compute R2
-        double R2 = R1 / sigmaSeed;
+        // compute R2 if needed 
+        //double R2 = R1 / sigmaSeed;
 
         // Seed's relative rotation between image 1 and 2
         // seed rotation α_S
