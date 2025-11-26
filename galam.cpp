@@ -13,14 +13,27 @@ GaLAM::GaLAM(const InputParameters& params)
     : params_(params) {}
 
 std::vector<GaLAM::ScoredMatch> GaLAM::selectSeedPoints(
-    const std::vector<ScoredMatch>& matches,
+    std::vector<ScoredMatch>& matches,
     const std::vector<cv::KeyPoint>& keypoints1,
     const cv::Mat& descriptors1,
     const cv::Mat& descriptors2,
     const cv::Size& imageSize1
 ) const
 {
-    return std::vector<ScoredMatch>();
+    // 1) Bidirectional NN + ratio test
+    matches = filterBidirectionalNN(descriptors1, descriptors2);
+    if (matches.empty()) {
+        std::cout << "GaLAM: No matches after bidirectional NN." << std::endl;
+        return std::vector<ScoredMatch>();
+    }
+
+    // 2) Assign confidence (1 / distance)
+    assignConfidenceScore(matches);
+
+    // 3) Seed selection with non-maximum suppression
+    std::vector<ScoredMatch> seeds = selectPoints(matches, keypoints1, imageSize1);
+
+    return seeds;
 }
 
 std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
@@ -419,8 +432,8 @@ void GaLAM::preprocessSets(
             // Get the coordinates of each of the keypoints
             const ScoredMatch& match = matches[neighborhoodMatch];
             const cv::DMatch& dmatch = match.match;
-            int query = dmatch.queryIdx;
-            int train = dmatch.trainIdx;
+            query = dmatch.queryIdx;
+            train = dmatch.trainIdx;
             const cv::KeyPoint& keypoint1 = keypoints1[query];
             const cv::KeyPoint& keypoint2 = keypoints2[train];
 
@@ -560,6 +573,28 @@ double GaLAM::measureAffineResidual(
     return residual;
 }
 
+void GaLAM::localAffineVerification(
+    std::vector<cv::KeyPoint>& keypoints1,
+    std::vector<cv::KeyPoint>& keypoints2,
+    const cv::Mat& descriptors1,
+    const cv::Mat& descriptors2,
+    const cv::Size& imageSize1,
+    const cv::Size& imageSize2,
+    std::vector<ScoredMatch>& seedPoints,
+    std::vector<std::set<int>>& neighborhoods,
+    std::vector<ScoredMatch>& matches
+) const
+{
+    // Get seed points
+    seedPoints = selectSeedPoints(matches, keypoints1, descriptors1, descriptors2, imageSize1);
+
+    // Get neighborhoods for each seed point
+    neighborhoods = localNeighborhoodSelection(matches, seedPoints, keypoints1, keypoints2, imageSize1, imageSize2);
+
+    // Perform affine verification
+    affineVerification(matches, seedPoints, keypoints1, keypoints2, neighborhoods, imageSize1, imageSize2);
+}
+
 // Main detection pipeline (stub for now)
 std::vector<cv::DMatch> GaLAM::detectOutliers(
     const std::vector<cv::KeyPoint>& keypoints1,
@@ -574,31 +609,27 @@ std::vector<cv::DMatch> GaLAM::detectOutliers(
     std::cout << "GaLAM: Processing " << candidateMatches.size()
               << " candidate matches..." << std::endl;
 
-    // 1) Bidirectional NN + ratio test
-    std::vector<ScoredMatch> filtered = filterBidirectionalNN(descriptors1, descriptors2);
-    if (filtered.empty()) {
-        std::cout << "GaLAM: No matches after bidirectional NN." << std::endl;
-        return {};
-    }
+    
 
-    // 2) Assign confidence (1 / distance)
-    assignConfidenceScore(filtered);
+    //std::cout << "GaLAM: Returning " << seedMatches.size()
+    //          << " seed matches (Stage 1 only)" << std::endl;
 
-    // 3) Seed selection with non-maximum suppression
-    std::vector<ScoredMatch> seeds = selectPoints(filtered, keypoints1, imageSize1);
+    // TODO: Stage 1 - Local affine verification
+    std::vector<ScoredMatch> seedPoints;
+    std::vector<std::set<int>> neighborhoods;
+    std::vector<ScoredMatch> matches;
+
+    localAffineVerification(keypoints1, keypoints2, descriptors1, descriptors2, imageSize1, imageSize2, seedPoints, neighborhoods, matches);
+     
+    // TODO: Stage 2 - Global geometric consistency
+
 
     // Convert seeds to plain cv::DMatch for the outside world
     std::vector<cv::DMatch> seedMatches;
-    seedMatches.reserve(seeds.size());
-    for (const auto& seed : seeds) {
+    seedMatches.reserve(seedPoints.size());
+    for (const auto& seed : seedPoints) {
         seedMatches.push_back(seed.match);
     }
-
-    std::cout << "GaLAM: Returning " << seedMatches.size()
-              << " seed matches (Stage 1 only)" << std::endl;
-
-    // TODO: Stage 1 - Local affine verification
-    // TODO: Stage 2 - Global geometric consistency
 
     return seedMatches;
 }

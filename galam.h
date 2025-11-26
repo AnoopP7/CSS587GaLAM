@@ -53,7 +53,7 @@ private:
 
     // Seed point selection
     std::vector<ScoredMatch> selectSeedPoints(
-        const std::vector<ScoredMatch>& matches,
+        std::vector<ScoredMatch>& matches,
         const std::vector<cv::KeyPoint>& keypoints1,
         const cv::Mat& descriptors1,
         const cv::Mat& descriptors2,
@@ -126,6 +126,18 @@ private:
         const ScoredMatch& correspondence,
         const std::vector<cv::Point2f>& normalizedKeypoints1,
         const std::vector<cv::Point2f>& normalizedKeypoints2
+    ) const;
+
+    void localAffineVerification(
+        std::vector<cv::KeyPoint>& keypoints1,
+        std::vector<cv::KeyPoint>& keypoints2,
+        const cv::Mat& descriptors1,
+        const cv::Mat& descriptors2,
+        const cv::Size& imageSize1,
+        const cv::Size& imageSize2,
+        std::vector<ScoredMatch>& seedPoints,
+        std::vector<std::set<int>>& neighborhoods,
+        std::vector<ScoredMatch>& matches
     ) const;
 
     //void filterByAffineResidual(
