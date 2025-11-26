@@ -18,6 +18,7 @@ public:
         double lambda1, lambda2, lambda3;
         double tAlpha = 10.0; // max rotation difference 
         double tSigma = 0.5; // max scale difference 
+        int num_iterations = 128;
         InputParameters()
         : ratio(100.0),
           rt_threshold(0.8),
@@ -44,6 +45,7 @@ private:
     InputParameters params_;
     double radius1, radius2;
 
+    // TODO: If time, refactor into an object so that we can easily have get/setX and get/setY
     struct ScoredMatch {
         cv::DMatch match;
         double confidence;
@@ -85,6 +87,61 @@ private:
         const cv::Size& imageSize1,
         const cv::Size& imageSize2
     ) const;
+
+    void affineVerification(
+        std::vector<ScoredMatch>& matches,
+        std::vector<ScoredMatch>& seedPoints,
+        std::vector<cv::KeyPoint>& keypoints1,
+        std::vector<cv::KeyPoint>& keypoints2,
+        std::vector<std::set<int>>& neighborhoods,
+        const cv::Size& imageSize1,
+        const cv::Size& imageSize2
+    ) const;
+
+    void preprocessSets(
+        const std::vector<ScoredMatch>& matches,
+        const std::vector<ScoredMatch>& seedPoints,
+        const std::vector<cv::KeyPoint>& keypoints1,
+        const std::vector<cv::KeyPoint>& keypoints2,
+        std::vector<std::set<int>>& neighborhoods,
+        const cv::Size& imageSize1,
+        const cv::Size& imageSize2,
+        std::vector<cv::Point2f>& normalizedKeypoints1,
+        std::vector<cv::Point2f>& normalizedKeypoints2
+    ) const;
+
+    std::vector<cv::Mat> fitTransformationMatrix(
+        std::vector<ScoredMatch>& matches,
+        std::vector<ScoredMatch>& seedPoints,
+        std::vector<cv::KeyPoint>& keypoints1,
+        std::vector<cv::KeyPoint>& keypoints2,
+        std::vector<std::set<int>>& neighborhoods,
+        const cv::Size& imageSize2,
+        std::vector<cv::Point2f>& normalizedKeypoints1,
+        std::vector<cv::Point2f>& normalizedKeypoints2
+    ) const;
+
+    double measureAffineResidual(
+        const cv::Mat& transformation,
+        const ScoredMatch& correspondence,
+        const std::vector<cv::Point2f>& normalizedKeypoints1,
+        const std::vector<cv::Point2f>& normalizedKeypoints2
+    ) const;
+
+    //void filterByAffineResidual(
+    //    const std::vector<ScoredMatch>& matches,
+    //    const std::vector<ScoredMatch>& seedPoints,
+    //    std::vector<std::set<int>>& neighborhoods,
+    //    std::vector<cv::Mat> transformations
+    //) const;
+
+    /*cv::Mat sampleSeedPoints(
+        const std::vector<ScoredMatch>& matches,
+        const std::vector<ScoredMatch>& seedPoints,
+        std::vector<std::set<int>>& neighborhoods
+    ) const;*/
+
+
 
     // std::vector<ScoredMatch> filterByDistance(
     //     const std::vector<ScoredMatch>& matches,

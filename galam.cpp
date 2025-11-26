@@ -1,5 +1,6 @@
 #include "galam.h"
 #include <opencv2/features2d.hpp>
+#include <opencv2/calib3d.hpp>
 #include <numeric>
 #include <algorithm>
 #include <iostream>
@@ -313,6 +314,9 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             const cv::KeyPoint& kp1 = keypoints1[m.match.queryIdx];
             const cv::KeyPoint& kp2 = keypoints2[m.match.trainIdx];
 
+            // Check that this is not a seed point
+            if (seed.match.queryIdx == m.match.queryIdx || seed.match.trainIdx == m.match.trainIdx) continue;
+
             // 1) Distance constraint (Eq.1)
             // spatial constraint in image1
             double dx1 = kp1.pt.x - kp1Seed.pt.x;
@@ -328,13 +332,10 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
 
             // 2) Rotation constraint (Eq.2)
             // rotation constraint
-            // Paper states: |α^Si - α^p| ≤ tα
-            // Both alphaCand and alphaSeed are already normalized to [-180, 180),
-            // their difference must also be normalized to handle wraparound.
             // compute candidate match relative rotation
             double alphaCand = normalizeAngle(kp2.angle - kp1.angle);
             // absolute difference in rotation between candidate and seed
-            double dAlpha = std::fabs(normalizeAngle(alphaCand - alphaSeed));
+            double dAlpha    = std::fabs(normalizeAngle(alphaCand - alphaSeed));
 
             // if the rotation difference is too large, reject this candidate
             if (dAlpha > tAlpha) continue;
@@ -347,6 +348,10 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             double ratio     = sigmaCand / sigmaSeed;
             // if scale difference in log domain is too large, reject this candidate
             if (std::fabs(std::log(ratio)) > tSigma) continue;
+
+            // 3) Scale constraint (Eq.3)
+            // TODO: Test this since they might not be exactly equal
+            if (R2 == R1 / sigmaSeed) continue;
 
             // if we reach here, the match passes all constraints for this seed
             // add index 'i' to the neighborhood of seed 's'
@@ -361,6 +366,199 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
     return neighborhoods;
 }
 
+void GaLAM::affineVerification(
+    std::vector<ScoredMatch>& matches,
+    std::vector<ScoredMatch>& seedPoints,
+    std::vector<cv::KeyPoint>& keypoints1,
+    std::vector<cv::KeyPoint>& keypoints2,
+    std::vector<std::set<int>>& neighborhoods,
+    const cv::Size& imageSize1,
+    const cv::Size& imageSize2
+) const
+{
+    // Standardize coordinates
+    std::vector<cv::Point2f> normalizedKeypoints1(keypoints1.size());
+    std::vector<cv::Point2f> normalizedKeypoints2(keypoints2.size());
+
+    preprocessSets(matches, seedPoints, keypoints1, keypoints2, neighborhoods, imageSize1, imageSize2, normalizedKeypoints1, normalizedKeypoints2);
+
+    // Get affine transformations for each neighborhood and filter out points
+    std::vector<cv::Mat> transformations = fitTransformationMatrix(matches, seedPoints, keypoints1, keypoints2, neighborhoods,
+        imageSize2, normalizedKeypoints1, normalizedKeypoints2);
+}
+
+// Assuming that R1 and R2 are the same R1 and R2 from earlier and that we don't normalize the coordinates of the seed points
+void GaLAM::preprocessSets(
+    const std::vector<ScoredMatch>& matches,
+    const std::vector<ScoredMatch>& seedPoints,
+    const std::vector<cv::KeyPoint>& keypoints1,
+    const std::vector<cv::KeyPoint>& keypoints2,
+    std::vector<std::set<int>>& neighborhoods,
+    const cv::Size& imageSize1,
+    const cv::Size& imageSize2,
+    std::vector<cv::Point2f>& normalizedKeypoints1,
+    std::vector<cv::Point2f>& normalizedKeypoints2
+) const
+{
+    // precompute base radius R1 and R2
+    double R1 = computeBaseRadius(imageSize1);
+    double R2 = computeBaseRadius(imageSize2);
+
+    // Go through each neighborhood
+    for (size_t i = 0; i < neighborhoods.size(); i++) {
+        // Go through matches in this neighborhood
+        for (size_t neighborhoodMatch : neighborhoods[i]) {
+            // Get the coordinates for the seed points
+            const ScoredMatch& seedPoint = seedPoints[i];
+            const cv::DMatch& seedMatch = seedPoint.match;
+            int query = seedMatch.queryIdx;
+            int train = seedMatch.trainIdx;
+            const cv::KeyPoint& seedPoint1 = keypoints1[query];
+            const cv::KeyPoint& seedPoint2 = keypoints2[train];
+
+            // Get the coordinates of each of the keypoints
+            const ScoredMatch& match = matches[neighborhoodMatch];
+            const cv::DMatch& dmatch = match.match;
+            int query = dmatch.queryIdx;
+            int train = dmatch.trainIdx;
+            const cv::KeyPoint& keypoint1 = keypoints1[query];
+            const cv::KeyPoint& keypoint2 = keypoints2[train];
+
+            // Modify the coordinates
+            normalizedKeypoints1[query].x = (keypoint1.pt.x - seedPoint1.pt.x) / (params_.lambda1 * R1);
+            normalizedKeypoints1[query].y = (keypoint1.pt.y - seedPoint1.pt.y) / (params_.lambda1 * R1);
+
+            normalizedKeypoints2[query].x = (keypoint2.pt.x - seedPoint2.pt.x) / (params_.lambda1 * R2);
+            normalizedKeypoints2[query].y = (keypoint2.pt.y - seedPoint2.pt.y) / (params_.lambda1 * R2);
+            //keypoint1.pt.x = (keypoint1.pt.x - seedPoint1.pt.x) / (params_.lambda1 * R1);
+            //keypoint2.pt.x = (keypoint2.pt.x - seedPoint2.pt.x) / (params_.lambda1 * R2);
+        }
+    }
+}
+
+// Assuming that we need TWO, not THREE and that we should remove if not
+// Might be selecting one with RANSAC
+std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
+    std::vector<ScoredMatch>& matches,
+    std::vector<ScoredMatch>& seedPoints,
+    std::vector<cv::KeyPoint>& keypoints1,
+    std::vector<cv::KeyPoint>& keypoints2,
+    std::vector<std::set<int>>& neighborhoods,
+    const cv::Size& imageSize2,
+    std::vector<cv::Point2f>& normalizedKeypoints1,
+    std::vector<cv::Point2f>& normalizedKeypoints2
+) const
+{
+    // Check that we have at least 2 points; if we don't, remove this seed point and neighborhood
+    for (size_t i = 0; i < neighborhoods.size(); i++) {
+        if (neighborhoods[i].size() < 2) {
+            neighborhoods.erase(neighborhoods.begin() + i);
+            seedPoints.erase(seedPoints.begin() + i);
+            --i;    // decrement index if we removed an item
+        }
+    }
+
+    // Create vector of affine transformations
+    std::vector<cv::Mat> transforms;
+
+    // Use RANSAC to fit an affine transformation matrix and evaluate it, maintaining the best one
+    // for loop 128
+        // fit
+        // evaluate
+        // score
+    // select the best one and filter based on it FOR THAT SEED POINT
+    
+    // Get threshold (same unless R2 is different for each seed point)
+    double R2 = computeBaseRadius(imageSize2);
+    double threshold = params_.lambda2 / (params_.lambda1 * R2);
+
+    // Iterate through each seed point's neighborhood
+    for (size_t neighborhood = 0; neighborhood < neighborhoods.size(); neighborhood++) {
+        // Build the vectors to use for fitting
+        std::vector<cv::Point2f&> points1;
+        std::vector<cv::Point2f&> points2;
+
+        for (int match : neighborhoods[neighborhood]) {
+            points1.push_back(normalizedKeypoints1[matches[match].match.queryIdx]);
+            points2.push_back(normalizedKeypoints2[matches[match].match.trainIdx]);
+            //points1.push_back(keypoints1[matches[match].match.queryIdx].pt);
+            //points2.push_back(keypoints2[matches[match].match.trainIdx].pt);
+        }
+
+        // Use RANSAC to fit the affine transformation matrix
+        // TODO: Verify that this approach is consistent with the paper
+        cv::Mat optimalTransformation;
+        int bestScore = -1;
+
+        for (int j = 0; j < params_.num_iterations; j++) {
+            cv::Mat transformation = cv::estimateAffinePartial2D(points1, points2, cv::noArray(), cv::RANSAC, 3, 1, 0.99, 10);
+
+            // Find the residual rk for each correspondence point pair in the neighborhood
+            int score = 0;
+            for (int match : neighborhoods[neighborhood]) {
+                double rk = measureAffineResidual(transformation, matches[match], normalizedKeypoints1, normalizedKeypoints2);
+
+                // Compare rk against threshold and count the number of rk below threshold
+                if (rk <= threshold) ++score;
+            }
+
+            // If this transformation has more rk below threshold, select it as the optimal transformation
+            if (score > bestScore) {
+                optimalTransformation = transformation;
+                bestScore = score;
+            }
+        }
+        
+        // Keep best affine transformation
+        transforms.push_back(optimalTransformation);
+
+        // Candidate correspondences with residuals below threshold are kept, others removed
+        // need to iterate through matches, check if their residual was less than threshold, and keep if so
+        for (int match : neighborhoods[neighborhood]) {
+            double rk = measureAffineResidual(optimalTransformation, matches[match], normalizedKeypoints1, normalizedKeypoints2);
+
+            // Compare rk against threshold and remove the match if above threshold
+            if (rk > threshold) {
+                neighborhoods[neighborhood].erase(match);
+                matches.erase(matches.begin() + match); // TODO: Make sure this actually erases the correct element
+            }
+        }
+    }
+
+    return transforms;
+}
+
+double GaLAM::measureAffineResidual(
+    const cv::Mat& transformation,
+    const ScoredMatch& correspondence,
+    const std::vector<cv::Point2f>& normalizedKeypoints1,
+    const std::vector<cv::Point2f>& normalizedKeypoints2
+) const
+{
+    // Get the normalized points
+    const cv::Point2f& point1 = normalizedKeypoints1[correspondence.match.queryIdx];
+    const cv::Point2f& point2 = normalizedKeypoints2[correspondence.match.trainIdx];
+
+    // Convert points to Mat for matrix multiplication
+    // TODO: Do we need to transpose?
+    cv::Mat_<double> matPoint1(3, 1);
+    matPoint1(0, 0) = point1.x;
+    matPoint1(1, 0) = point1.y;
+    matPoint1(2, 0) = 1.0;
+
+    cv::Mat_<double> matPoint2(2, 1);
+    matPoint2(0, 0) = point2.x;
+    matPoint2(1, 0) = point2.y;
+
+    // Compute matrix multiplication
+    cv::Mat result = (transformation * matPoint1) - matPoint2;
+
+    // Get norm of resulting vector
+    // Should this be L2 norm or something else?
+    double residual = cv::norm(result, cv::NORM_L2);
+
+    return residual;
+}
 
 // Main detection pipeline (stub for now)
 std::vector<cv::DMatch> GaLAM::detectOutliers(
