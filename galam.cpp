@@ -488,8 +488,8 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
     // Iterate through each seed point's neighborhood
     for (size_t neighborhood = 0; neighborhood < neighborhoods.size(); neighborhood++) {
         // Build the vectors to use for fitting
-        std::vector<cv::Point2f&> points1;
-        std::vector<cv::Point2f&> points2;
+        std::vector<cv::Point2f> points1;
+        std::vector<cv::Point2f> points2;
 
         for (int match : neighborhoods[neighborhood]) {
             points1.push_back(normalizedKeypoints1[matches[match].match.queryIdx]);
