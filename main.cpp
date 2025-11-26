@@ -77,5 +77,48 @@ int main(int argc, char** argv) {
         cv::Size(img2.cols, img2.rows)
     );
 
+    const auto& seedMatches = results.seedMatches;
+    const auto& filteredMatches = results.stage1Matches;
+
+    // Results summary
+    std::cout << "\n========================================" << std::endl;
+    std::cout << "Results:" << std::endl;
+    std::cout << "  Initial matches:  " << initialMatches.size() << std::endl;
+    std::cout << "  Seed points: " << seedMatches.size() << std::endl;
+    std::cout << "  Stage 1 inliers: " << filteredMatches.size() << std::endl;
+
+    double reductionPercent = 0.0;
+    if (!initialMatches.empty()) {
+        reductionPercent =
+            100.0 * (static_cast<double>(initialMatches.size() - filteredMatches.size())
+                     / static_cast<double>(initialMatches.size()));
+    }
+    std::cout << "  Outliers removed:      " << (initialMatches.size() - filteredMatches.size()) << std::endl;
+    std::cout << "  Reduction:             " << std::fixed << std::setprecision(1) 
+              << reductionPercent << "%" << std::endl;
+    std::cout << "========================================" << std::endl;
+
+    // Visualization
+    std::cout << "\nGenerating visualizations..." << std::endl;
+    cv::Mat output;
+
+    // 1. Initial matches
+    cv::drawMatches(img1, keypoints1, img2, keypoints2, initialMatches, output,
+                    cv::Scalar(0, 255, 255));
+    cv::imwrite("galam_1_initial.jpg", output);
+    std::cout << "  Saved: galam_1_initial.jpg" << std::endl;
+
+    // 2. Seed points
+    cv::drawMatches(img1, keypoints1, img2, keypoints2, seedMatches, output,
+                    cv::Scalar(255, 100, 0));
+    cv::imwrite("galam_2_seeds.jpg", output);
+    std::cout << "  Saved: galam_2_seeds.jpg" << std::endl;
+
+    // 3. Stage 1 inliers
+    cv::drawMatches(img1, keypoints1, img2, keypoints2, filteredMatches, output,
+                    cv::Scalar(0, 255, 0));
+    cv::imwrite("galam_3_stage1.jpg", output);
+    std::cout << "  Saved: galam_3_stage1.jpg" << std::endl;
+
     return 0;
 }
