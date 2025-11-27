@@ -577,15 +577,15 @@ double GaLAM::measureAffineResidual(
 }
 
 // Stage 2
-std::vector<cv::DMatch> globalGeometryVerification(
+std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     const std::vector<ScoredMatch>& matches, 
     const std::vector<ScoredMatch>& seedPoints, 
     const std::vector<cv::KeyPoint>& keypoints1,
     const std::vector<cv::KeyPoint>& keypoints2,
-    const std::vector<std::vector<int>>& neighborhoods
+    const std::vector<std::set<int>>& neighborhoods
 ) const
 {
-    // 1.Use PROSAC to sample minimal sets of 8 seeds
+    // 1.Use RANSAC to sample minimal sets of 8 seeds
     // 2.Estimate fundamental matrix from each set (8 points)
     // 3.For every seed, compute epipolar deviation r_i (F_t)
     // Equation 7,8
@@ -595,7 +595,7 @@ std::vector<cv::DMatch> globalGeometryVerification(
      // 7.Any seed that is inlier for at least one strong model is marked as inlier
     // 8.Final correspondences = union of neighborhoods of those seeds.
 
-    // PROSAC ranking and local support Ni (number of inlier matches in 
+    // RANSAC ranking and local support Ni (number of inlier matches in 
     // that seed's neighborhood after stage 1)
 
     // number of seeds
@@ -645,11 +645,11 @@ std::vector<cv::DMatch> globalGeometryVerification(
 
     // RANSAC sampling of minSampleSize from top poolSize seeds
     std::vector<int> sampleSeedIndices;
-    sampledSeedIndices.reserve(minSampleSize);
+    sampleSeedIndices.reserve(minSampleSize);
     std::vector<bool> used(numSeeds, false);
 
     int attempts = 0;
-    while (static_cast<int>(sampledSeedIndices.size()) < minSampleSize && 
+    while (static_cast<int>(sampleSeedIndices.size()) < minSampleSize && 
                                     attempts < 100 * minSampleSize) {
         int idx = rng.uniform(0, numSeeds); // uniform sampling from [0, numSeeds)
         if (used[idx]) {

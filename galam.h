@@ -16,16 +16,20 @@ public:
         double rt_threshold;
         double epsilon;
         double lambda1, lambda2, lambda3;
-        double tAlpha = 10.0; // max rotation difference 
-        double tSigma = 0.5; // max scale difference 
-        int num_iterations = 128; // iterations
-        int minSampleSize = 8; // 8-points algorithm (8 pairs)
+        double tAlpha;// max rotation difference 
+        double tSigma;// max scale difference 
+        int num_iterations; // iterations
+        int minSampleSize; // 8-points algorithm (8 pairs)
         InputParameters()
         : ratio(100.0),
           rt_threshold(0.8),
           epsilon(1e-6),
           // lamba could be different values
           lambda1(4.0), lambda2(2.0), lambda3(0.8)
+          tAlpha(10.0),
+          tSigma(0.5),
+          num_iterations(128),
+          minSampleSize(8)
     {}
     };
 
