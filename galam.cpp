@@ -527,14 +527,17 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
 
         // Candidate correspondences with residuals below threshold are kept, others removed
         // need to iterate through matches, check if their residual was less than threshold, and keep if so
+        std::vector<int> toRemove;
         for (int match : neighborhoods[neighborhood]) {
             double rk = measureAffineResidual(optimalTransformation, matches[match], normalizedKeypoints1, normalizedKeypoints2);
 
             // Compare rk against threshold and remove the match if above threshold
             if (rk > threshold) {
-                neighborhoods[neighborhood].erase(match);
-                matches.erase(matches.begin() + match); // TODO: Make sure this actually erases the correct element
+                toRemove.push_back(match); // TODO: Make sure this actually erases the correct element
             }
+        }
+        for (int idx : toRemove) {
+            neighborhoods[neighborhood].erase(idx);
         }
     }
 
