@@ -608,13 +608,33 @@ std::vector<cv::DMatch> globalGeometryVerification(
     double lamda3 = params_.lamda3; // lamda3 from paper
 
     // Check if there is enough seeds to estimate fundamental matrix
-    if (numSeeds < minSampleSize) {
-        std::cout << "STAGE 2: Not enough seeds for 8-points model" << endl;
+    if (numSeeds == 0) {
+        std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): No seeds provided." << std::endl;
+        return {};
     }
 
-    // 3.Sample multiple fundamental metric
+    if (matches.empty()) {
+        std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): No matches provided." << std::endl;
+        return {};
+    }
+
+    if (static_cast<int>(neighborhoods.size()) != numSeeds) {
+        std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): neighborhoods.size() ("
+                  << neighborhoods.size() << ") does not match seedPoints.size() ("
+                  << numSeeds << ")." << std::endl;
+        return {};
+    }
+
+    if (numSeeds < minSampleSize) {
+        std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): Not enough seeds for 8-point "
+                  << "fundamental matrix (" << numSeeds << " < "
+                  << minSampleSize << ")." << std::endl;
+        return {};
+    }
+
+    // Sample multiple fundamental matrices
     std::vector<int> modelSupports;                  // o_t for each model
-    std::vector<std::vector<bool>> modelSeedInliers; // ehich seeds satisfied r_i(F_t) < threshold
+    std::vector<std::vector<bool>> modelSeedInliers; // which seeds satisfied r_i(F_t) < threshold
 
     // pre-allocation 
     modelSupports.reserve(num_iterations);
@@ -631,7 +651,7 @@ std::vector<cv::DMatch> globalGeometryVerification(
     int attempts = 0;
     while (static_cast<int>(sampledSeedIndices.size()) < minSampleSize && 
                                     attempts < 100 * minSampleSize) {
-        int idx = rng.uniform(0, numSeeds);
+        int idx = rng.uniform(0, numSeeds); // uniform sampling from [0, numSeeds)
         if (used[idx]) {
             ++attempts;
             continue;
@@ -640,7 +660,8 @@ std::vector<cv::DMatch> globalGeometryVerification(
         sampleSeedIndices.push_back(idx);
     }
 
-    if ((int)sampleSeedIndices.size() < minSampleSize) {
+    // if we could not sample enough unique seeds, skip this iteration
+    if (static_cast<int>(sampleSeedIndices.size()) < minSampleSize) {
         continue;
     }
 
@@ -657,6 +678,7 @@ std::vector<cv::DMatch> globalGeometryVerification(
         pts2.push_back(kp2.pt);
     }
 
+    // Estimate fundamental matrix from 8-point sample
     cv::Mat F = cv::findFundamentalMat(
         pts1, pts2,
         cv::FM_8POINT
@@ -701,13 +723,13 @@ std::vector<cv::DMatch> globalGeometryVerification(
 
         if (r <= epsilon) {
             seedInlier[i] = true;
-            supportCount++;
+            ++supportCount;
         }
     }
 
     if (supportCount == 0) {
         // F_t explains no seeds
-            continue;
+        continue;
     }
 
     modelSupports.push_back(supportCount);
@@ -716,54 +738,18 @@ std::vector<cv::DMatch> globalGeometryVerification(
     // if no valid models, we should handle fallback to Stage 1 results
     // return stage 1 results instead
     if (modelSupports.empty()) {
-        std::cout << "STAGE 2 (RANSAC): No valid F models generated. "
-                 "Returning union of Stage 1 neighborhoods."
-                << std::endl;
-
-        std::vector<bool> isGoodMatch(matches.size(), false);
-        for (const auto& neigh : neighborhoods) {
-            for (int idx : neigh) {
-                if (idx >= 0 && idx < static_cast<int>(matches.size())) {
-                    isGoodMatch[idx] = true;
-                }
-            }
-        }
-
-        std::vector<cv::DMatch> fallback;
-        fallback.reserve(matches.size());
-        for (size_t i = 0; i < matches.size(); ++i) {
-            if (isGoodMatch[i]) {
-                fallback.push_back(matches[i].match);
-            }
-        }
-        return fallback;
+        std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): No valid fundamental "
+                  << "matrix models were generated." << std::endl;
+        return {};
     }
 
     // find maximum support o_max
     // lambda3 * o_max means model m is strong
     int omax = *std::max_element(modelSupports.begin(), modelSupports.end());
-    if (omax == 0) {
-        std::cout << "STAGE 2 (RANSAC): All models have zero support. "
-                     "Returning union of Stage 1 neighborhoods."
-                  << std::endl;
-
-        std::vector<bool> isGoodMatch(matches.size(), false);
-        for (const auto& neigh : neighborhoods) {
-            for (int idx : neigh) {
-                if (idx >= 0 && idx < static_cast<int>(matches.size())) {
-                    isGoodMatch[idx] = true;
-                }
-            }
-        }
-
-        std::vector<cv::DMatch> fallback;
-        fallback.reserve(matches.size());
-        for (size_t i = 0; i < matches.size(); ++i) {
-            if (isGoodMatch[i]) {
-                fallback.push_back(matches[i].match);
-            }
-        }
-        return fallback;
+    if (omax <= 0) {
+        std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): All models have zero "
+                  << "support (omax <= 0)." << std::endl;
+        return {};
     }
 
     // mark strong models
@@ -775,6 +761,7 @@ std::vector<cv::DMatch> globalGeometryVerification(
     }
 
     // a seed is kept if it is inlier for at least one strong model
+    // if lambda3 filtering removes everything, we fallback to best model only
     // if not strong models, fallback to stage 1
     std::vector<bool> keepSeed(numSeeds, false);
 
@@ -790,16 +777,16 @@ std::vector<cv::DMatch> globalGeometryVerification(
 
     bool anySeedKept = false;
     for (int i = 0; i < numSeeds; ++i) {
-        if (keepSeed[i]) { anySeedKept = true; break; }
+        if (keepSeed[i]) { 
+            anySeedKept = true; 
+            break; 
+        }
     }
 
+    // if λ3-strong models kept no seeds, we still use the best model.
     if (!anySeedKept) {
-        std::cout << "STAGE 2 (RANSAC): No seed kept by λ3-filtered models. "
-                     "Falling back to best model only."
-                  << std::endl;
-
         int bestModelIdx = 0;
-        for (size_t m = 1; m < modelSupports.size(); ++m) {
+        for (std::size_t m = 1; m < modelSupports.size(); ++m) {
             if (modelSupports[m] > modelSupports[bestModelIdx]) {
                 bestModelIdx = static_cast<int>(m);
             }
@@ -807,16 +794,16 @@ std::vector<cv::DMatch> globalGeometryVerification(
 
         const auto& bestSeedInliers = modelSeedInliers[bestModelIdx];
         for (int i = 0; i < numSeeds; ++i) {
-            if (bestSeedInliers[i]) {
-                keepSeed[i] = true;
-            }
+            keepSeed[i] = bestSeedInliers[i];
         }
     }
 
-    // final correspondences = union of neighborhoods of kept seeds
+    // build final correspondences = union of neighborhoods of kept seeds
     std::vector<bool> isGoodMatch(matches.size(), false);
     for (int i = 0; i < numSeeds; ++i) {
         if (!keepSeed[i]) continue;
+
+        // add neighborhood of seed i
         const auto& neigh = neighborhoods[i];
         for (int idx : neigh) {
             if (idx >= 0 && idx < static_cast<int>(matches.size())) {
@@ -841,8 +828,6 @@ std::vector<cv::DMatch> globalGeometryVerification(
     return finalMatches;
 
 }
-
-
 
 
 void GaLAM::localAffineVerification(
