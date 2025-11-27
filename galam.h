@@ -18,7 +18,8 @@ public:
         double lambda1, lambda2, lambda3;
         double tAlpha = 10.0; // max rotation difference 
         double tSigma = 0.5; // max scale difference 
-        int num_iterations = 128;
+        int num_iterations = 128; // iterations
+        int minSampleSize = 8; // 8-points algorithm (8 pairs)
         InputParameters()
         : ratio(100.0),
           rt_threshold(0.8),
@@ -146,6 +147,14 @@ private:
         std::vector<ScoredMatch>& matches
     ) const;
 
+    // Stage 2
+    std::vector<cv::DMatch> globalGeometryVerification(
+        const std::vector<ScoredMatch>& matches, 
+        const std::vector<ScoredMatch>& seedPoints, 
+        const std::vector<cv::KeyPoint>& keypoints1,
+        const std::vector<cv::KeyPoint>& keypoints2,
+        const std::vector<std::vector<int>>& neighborhoods
+    ) const;
     //void filterByAffineResidual(
     //    const std::vector<ScoredMatch>& matches,
     //    const std::vector<ScoredMatch>& seedPoints,

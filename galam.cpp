@@ -576,6 +576,275 @@ double GaLAM::measureAffineResidual(
     return residual;
 }
 
+// Stage 2
+std::vector<cv::DMatch> globalGeometryVerification(
+    const std::vector<ScoredMatch>& matches, 
+    const std::vector<ScoredMatch>& seedPoints, 
+    const std::vector<cv::KeyPoint>& keypoints1,
+    const std::vector<cv::KeyPoint>& keypoints2,
+    const std::vector<std::vector<int>>& neighborhoods
+) const
+{
+    // 1.Use PROSAC to sample minimal sets of 8 seeds
+    // 2.Estimate fundamental matrix from each set (8 points)
+    // 3.For every seed, compute epipolar deviation r_i (F_t)
+    // Equation 7,8
+    // 4.Model siupport o_t = number of seed with r_i (epsilon)
+    // 5.After all models, compute o_max = max_t o_t
+    // 6.Keep strong matches models with o_t >= lamda3 * o_max
+     // 7.Any seed that is inlier for at least one strong model is marked as inlier
+    // 8.Final correspondences = union of neighborhoods of those seeds.
+
+    // PROSAC ranking and local support Ni (number of inlier matches in 
+    // that seed's neighborhood after stage 1)
+
+    // number of seeds
+    const int numSeeds = static_cast<int>(seedPoints.size());
+
+    // RANSACSampling Parameters
+    int minSampleSize = params_.minSampleSize; // 8
+    int num_iterations = params_.num_iterations; // 128
+    double epsilon = params_.epsilon; // epipolar threshold
+    double lamda3 = params_.lamda3; // lamda3 from paper
+
+    // Check if there is enough seeds to estimate fundamental matrix
+    if (numSeeds < minSampleSize) {
+        std::cout << "STAGE 2: Not enough seeds for 8-points model" << endl;
+    }
+
+    // 3.Sample multiple fundamental metric
+    std::vector<int> modelSupports;                  // o_t for each model
+    std::vector<std::vector<bool>> modelSeedInliers; // ehich seeds satisfied r_i(F_t) < threshold
+
+    // pre-allocation 
+    modelSupports.reserve(num_iterations);
+    modelSeedInliers.reserve(num_iterations);
+
+    // RNG for sampling
+    cv::RNG rng((uint64)cv::getTickCount());
+
+    // RANSAC sampling of minSampleSize from top poolSize seeds
+    std::vector<int> sampleSeedIndices;
+    sampledSeedIndices.reserve(minSampleSize);
+    std::vector<bool> used(numSeeds, false);
+
+    int attempts = 0;
+    while (static_cast<int>(sampledSeedIndices.size()) < minSampleSize && 
+                                    attempts < 100 * minSampleSize) {
+        int idx = rng.uniform(0, numSeeds);
+        if (used[idx]) {
+            ++attempts;
+            continue;
+        }
+        used[idx] = true;
+        sampleSeedIndices.push_back(idx);
+    }
+
+    if ((int)sampleSeedIndices.size() < minSampleSize) {
+        continue;
+    }
+
+    // 8-points sample and estimate F_t
+    std::vector<cv::Point2f> pts1, pts2;
+    pts1.reserve(minSampleSize);
+    pts2.reserve(minSampleSize);
+
+    for (int seedIdx : sampleSeedIndices) {
+        const ScoredMatch& sm = seedPoints[seedIdx];
+        const cv::KeyPoint& kp1 = keypoints1[sm.match.queryIdx];
+        const cv::KeyPoint& kp2 = keypoints2[sm.match.trainIdx];
+        pts1.push_back(kp1.pt);
+        pts2.push_back(kp2.pt);
+    }
+
+    cv::Mat F = cv::findFundamentalMat(
+        pts1, pts2,
+        cv::FM_8POINT
+    );
+
+    if (F.empty()) {
+        // degenerate configuration
+        continue;
+    }
+
+    cv::Matx33d Fm;
+    F.convertTo(Fm, CV_64F);
+
+
+    // Evaluate seeds with Equation 7 and 8 and compute o_t
+    //   Eq (7): l'_i = F_t x_i
+    //   Eq (8): r_i(F_t) = |x'_i^T l'_i| / sqrt(a_i^2 + b_i^2)
+    std::vector<bool> seedInlier(numSeeds, false);
+    int supportCount = 0; // this is o_t for this model
+
+    for (int i = 0; i < numSeeds; ++i) {
+        const ScoredMatch& sm = seedPoints[i];
+        const cv::KeyPoint& kp1 = keypoints1[sm.match.queryIdx];
+        const cv::KeyPoint& kp2 = keypoints2[sm.match.trainIdx];
+
+        cv::Vec3d x(kp1.pt.x, kp1.pt.y, 1.0);
+        cv::Vec3d xp(kp2.pt.x, kp2.pt.y, 1.0);
+
+        // Eq. (7): epipolar line in image 2
+        cv::Vec3d l = Fm * x;
+        double a = l[0], b = l[1], c = l[2];
+
+        double denom = std::sqrt(a * a + b * b);
+        if (denom < 1e-12) {
+            // degenerate epipolar line
+            continue;
+        }
+
+        // Eq. (8): epipolar distance from x' to line l'
+        double num = std::fabs(a * xp[0] + b * xp[1] + c);
+        double r   = num / denom;
+
+        if (r <= epsilon) {
+            seedInlier[i] = true;
+            supportCount++;
+        }
+    }
+
+    if (supportCount == 0) {
+        // F_t explains no seeds
+            continue;
+    }
+
+    modelSupports.push_back(supportCount);
+    modelSeedInliers.push_back(std::move(seedInlier));
+
+    // if no valid models, we should handle fallback to Stage 1 results
+    // return stage 1 results instead
+    if (modelSupports.empty()) {
+        std::cout << "STAGE 2 (RANSAC): No valid F models generated. "
+                 "Returning union of Stage 1 neighborhoods."
+                << std::endl;
+
+        std::vector<bool> isGoodMatch(matches.size(), false);
+        for (const auto& neigh : neighborhoods) {
+            for (int idx : neigh) {
+                if (idx >= 0 && idx < static_cast<int>(matches.size())) {
+                    isGoodMatch[idx] = true;
+                }
+            }
+        }
+
+        std::vector<cv::DMatch> fallback;
+        fallback.reserve(matches.size());
+        for (size_t i = 0; i < matches.size(); ++i) {
+            if (isGoodMatch[i]) {
+                fallback.push_back(matches[i].match);
+            }
+        }
+        return fallback;
+    }
+
+    // find maximum support o_max
+    // lambda3 * o_max means model m is strong
+    int omax = *std::max_element(modelSupports.begin(), modelSupports.end());
+    if (omax == 0) {
+        std::cout << "STAGE 2 (RANSAC): All models have zero support. "
+                     "Returning union of Stage 1 neighborhoods."
+                  << std::endl;
+
+        std::vector<bool> isGoodMatch(matches.size(), false);
+        for (const auto& neigh : neighborhoods) {
+            for (int idx : neigh) {
+                if (idx >= 0 && idx < static_cast<int>(matches.size())) {
+                    isGoodMatch[idx] = true;
+                }
+            }
+        }
+
+        std::vector<cv::DMatch> fallback;
+        fallback.reserve(matches.size());
+        for (size_t i = 0; i < matches.size(); ++i) {
+            if (isGoodMatch[i]) {
+                fallback.push_back(matches[i].match);
+            }
+        }
+        return fallback;
+    }
+
+    // mark strong models
+    std::vector<bool> modelIsGood(modelSupports.size(), false);
+    for (size_t m = 0; m < modelSupports.size(); ++m) {
+        if (modelSupports[m] >= lambda3 * omax) {
+            modelIsGood[m] = true;
+        }
+    }
+
+    // a seed is kept if it is inlier for at least one strong model
+    // if not strong models, fallback to stage 1
+    std::vector<bool> keepSeed(numSeeds, false);
+
+    for (size_t m = 0; m < modelSupports.size(); ++m) {
+        if (!modelIsGood[m]) continue;
+        const auto& seedInlier = modelSeedInliers[m];
+        for (int i = 0; i < numSeeds; ++i) {
+            if (seedInlier[i]) {
+                keepSeed[i] = true;
+            }
+        }
+    }
+
+    bool anySeedKept = false;
+    for (int i = 0; i < numSeeds; ++i) {
+        if (keepSeed[i]) { anySeedKept = true; break; }
+    }
+
+    if (!anySeedKept) {
+        std::cout << "STAGE 2 (RANSAC): No seed kept by λ3-filtered models. "
+                     "Falling back to best model only."
+                  << std::endl;
+
+        int bestModelIdx = 0;
+        for (size_t m = 1; m < modelSupports.size(); ++m) {
+            if (modelSupports[m] > modelSupports[bestModelIdx]) {
+                bestModelIdx = static_cast<int>(m);
+            }
+        }
+
+        const auto& bestSeedInliers = modelSeedInliers[bestModelIdx];
+        for (int i = 0; i < numSeeds; ++i) {
+            if (bestSeedInliers[i]) {
+                keepSeed[i] = true;
+            }
+        }
+    }
+
+    // final correspondences = union of neighborhoods of kept seeds
+    std::vector<bool> isGoodMatch(matches.size(), false);
+    for (int i = 0; i < numSeeds; ++i) {
+        if (!keepSeed[i]) continue;
+        const auto& neigh = neighborhoods[i];
+        for (int idx : neigh) {
+            if (idx >= 0 && idx < static_cast<int>(matches.size())) {
+                isGoodMatch[idx] = true;
+            }
+        }
+    }
+
+    std::vector<cv::DMatch> finalMatches;
+    finalMatches.reserve(matches.size());
+    for (size_t i = 0; i < matches.size(); ++i) {
+        if (isGoodMatch[i]) {
+            finalMatches.push_back(matches[i].match);
+        }
+    }
+
+    std::cout << "STAGE 2 (RANSAC): returning "
+              << finalMatches.size()
+              << " matches after global geometry detection."
+              << std::endl;
+
+    return finalMatches;
+
+}
+
+
+
+
 void GaLAM::localAffineVerification(
     std::vector<cv::KeyPoint>& keypoints1,
     std::vector<cv::KeyPoint>& keypoints2,
