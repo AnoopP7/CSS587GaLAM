@@ -591,7 +591,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     // Equation 7,8
     // 4.Model siupport o_t = number of seed with r_i (epsilon)
     // 5.After all models, compute o_max = max_t o_t
-    // 6.Keep strong matches models with o_t >= lamda3 * o_max
+    // 6.Keep strong matches models with o_t >= lambda3 * o_max
      // 7.Any seed that is inlier for at least one strong model is marked as inlier
     // 8.Final correspondences = union of neighborhoods of those seeds.
 
@@ -605,7 +605,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     int minSampleSize = params_.minSampleSize; // 8
     int num_iterations = params_.num_iterations; // 128
     double epsilon = params_.epsilon; // epipolar threshold
-    double lamda3 = params_.lamda3; // lamda3 from paper
+    double lambda3 = params_.lambda3; // lamda3 from paper
 
     // Check if there is enough seeds to estimate fundamental matrix
     if (numSeeds == 0) {

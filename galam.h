@@ -25,7 +25,7 @@ public:
           rt_threshold(0.8),
           epsilon(1e-6),
           // lamba could be different values
-          lambda1(4.0), lambda2(2.0), lambda3(0.8)
+          lambda1(4.0), lambda2(2.0), lambda3(0.8),
           tAlpha(10.0),
           tSigma(0.5),
           num_iterations(128),
@@ -157,7 +157,7 @@ private:
         const std::vector<ScoredMatch>& seedPoints, 
         const std::vector<cv::KeyPoint>& keypoints1,
         const std::vector<cv::KeyPoint>& keypoints2,
-        const std::vector<std::vector<int>>& neighborhoods
+        const std::vector<std::set<int>>& neighborhoods
     ) const;
     //void filterByAffineResidual(
     //    const std::vector<ScoredMatch>& matches,
