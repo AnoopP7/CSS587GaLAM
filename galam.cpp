@@ -643,97 +643,99 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     // RNG for sampling
     cv::RNG rng((uint64)cv::getTickCount());
 
-    // RANSAC sampling of minSampleSize from top poolSize seeds
-    std::vector<int> sampleSeedIndices;
-    sampleSeedIndices.reserve(minSampleSize);
-    std::vector<bool> used(numSeeds, false);
+    for (int iter = 0; iter < num_iterations; ++iter) {
+        // RANSAC sampling of minSampleSize from top poolSize seeds
+        std::vector<int> sampleSeedIndices;
+        sampleSeedIndices.reserve(minSampleSize);
+        std::vector<bool> used(numSeeds, false);
 
-    int attempts = 0;
-    while (static_cast<int>(sampleSeedIndices.size()) < minSampleSize && 
-                                    attempts < 100 * minSampleSize) {
-        int idx = rng.uniform(0, numSeeds); // uniform sampling from [0, numSeeds)
-        if (used[idx]) {
-            ++attempts;
-            continue;
+        int attempts = 0;
+        while (static_cast<int>(sampleSeedIndices.size()) < minSampleSize && 
+                                        attempts < 100 * minSampleSize) {
+            int idx = rng.uniform(0, numSeeds); // uniform sampling from [0, numSeeds)
+            if (used[idx]) {
+                ++attempts;
+                continue;
+            }
+            used[idx] = true;
+            sampleSeedIndices.push_back(idx);
         }
-        used[idx] = true;
-        sampleSeedIndices.push_back(idx);
-    }
 
-    // if we could not sample enough unique seeds, skip this iteration
-    if (static_cast<int>(sampleSeedIndices.size()) < minSampleSize) {
-        continue;
-    }
-
-    // 8-points sample and estimate F_t
-    std::vector<cv::Point2f> pts1, pts2;
-    pts1.reserve(minSampleSize);
-    pts2.reserve(minSampleSize);
-
-    for (int seedIdx : sampleSeedIndices) {
-        const ScoredMatch& sm = seedPoints[seedIdx];
-        const cv::KeyPoint& kp1 = keypoints1[sm.match.queryIdx];
-        const cv::KeyPoint& kp2 = keypoints2[sm.match.trainIdx];
-        pts1.push_back(kp1.pt);
-        pts2.push_back(kp2.pt);
-    }
-
-    // Estimate fundamental matrix from 8-point sample
-    cv::Mat F = cv::findFundamentalMat(
-        pts1, pts2,
-        cv::FM_8POINT
-    );
-
-    if (F.empty()) {
-        // degenerate configuration
-        continue;
-    }
-
-    cv::Matx33d Fm;
-    F.convertTo(Fm, CV_64F);
-
-
-    // Evaluate seeds with Equation 7 and 8 and compute o_t
-    //   Eq (7): l'_i = F_t x_i
-    //   Eq (8): r_i(F_t) = |x'_i^T l'_i| / sqrt(a_i^2 + b_i^2)
-    std::vector<bool> seedInlier(numSeeds, false);
-    int supportCount = 0; // this is o_t for this model
-
-    for (int i = 0; i < numSeeds; ++i) {
-        const ScoredMatch& sm = seedPoints[i];
-        const cv::KeyPoint& kp1 = keypoints1[sm.match.queryIdx];
-        const cv::KeyPoint& kp2 = keypoints2[sm.match.trainIdx];
-
-        cv::Vec3d x(kp1.pt.x, kp1.pt.y, 1.0);
-        cv::Vec3d xp(kp2.pt.x, kp2.pt.y, 1.0);
-
-        // Eq. (7): epipolar line in image 2
-        cv::Vec3d l = Fm * x;
-        double a = l[0], b = l[1], c = l[2];
-
-        double denom = std::sqrt(a * a + b * b);
-        if (denom < 1e-12) {
-            // degenerate epipolar line
+        // if we could not sample enough unique seeds, skip this iteration
+        if (static_cast<int>(sampleSeedIndices.size()) < minSampleSize) {
             continue;
         }
 
-        // Eq. (8): epipolar distance from x' to line l'
-        double num = std::fabs(a * xp[0] + b * xp[1] + c);
-        double r   = num / denom;
+        // 8-points sample and estimate F_t
+        std::vector<cv::Point2f> pts1, pts2;
+        pts1.reserve(minSampleSize);
+        pts2.reserve(minSampleSize);
 
-        if (r <= epsilon) {
-            seedInlier[i] = true;
-            ++supportCount;
+        for (int seedIdx : sampleSeedIndices) {
+            const ScoredMatch& sm = seedPoints[seedIdx];
+            const cv::KeyPoint& kp1 = keypoints1[sm.match.queryIdx];
+            const cv::KeyPoint& kp2 = keypoints2[sm.match.trainIdx];
+            pts1.push_back(kp1.pt);
+            pts2.push_back(kp2.pt);
         }
-    }
 
-    if (supportCount == 0) {
-        // F_t explains no seeds
-        continue;
-    }
+        // Estimate fundamental matrix from 8-point sample
+        cv::Mat F = cv::findFundamentalMat(
+            pts1, pts2,
+            cv::FM_8POINT
+        );
 
-    modelSupports.push_back(supportCount);
-    modelSeedInliers.push_back(std::move(seedInlier));
+        if (F.empty()) {
+            // degenerate configuration
+            continue;
+        }
+
+        cv::Matx33d Fm;
+        F.convertTo(Fm, CV_64F);
+
+
+        // Evaluate seeds with Equation 7 and 8 and compute o_t
+        //   Eq (7): l'_i = F_t x_i
+        //   Eq (8): r_i(F_t) = |x'_i^T l'_i| / sqrt(a_i^2 + b_i^2)
+        std::vector<bool> seedInlier(numSeeds, false);
+        int supportCount = 0; // this is o_t for this model
+
+        for (int i = 0; i < numSeeds; ++i) {
+            const ScoredMatch& sm = seedPoints[i];
+            const cv::KeyPoint& kp1 = keypoints1[sm.match.queryIdx];
+            const cv::KeyPoint& kp2 = keypoints2[sm.match.trainIdx];
+
+            cv::Vec3d x(kp1.pt.x, kp1.pt.y, 1.0);
+            cv::Vec3d xp(kp2.pt.x, kp2.pt.y, 1.0);
+
+            // Eq. (7): epipolar line in image 2
+            cv::Vec3d l = Fm * x;
+            double a = l[0], b = l[1], c = l[2];
+
+            double denom = std::sqrt(a * a + b * b);
+            if (denom < 1e-12) {
+                // degenerate epipolar line
+                continue;
+            }
+
+            // Eq. (8): epipolar distance from x' to line l'
+            double num = std::fabs(a * xp[0] + b * xp[1] + c);
+            double r   = num / denom;
+
+            if (r <= epsilon) {
+                seedInlier[i] = true;
+                ++supportCount;
+            }
+        }
+
+        if (supportCount == 0) {
+            // F_t explains no seeds
+            continue;
+        }
+
+        modelSupports.push_back(supportCount);
+        modelSeedInliers.push_back(std::move(seedInlier));
+    }
 
     // if no valid models, we should handle fallback to Stage 1 results
     // return stage 1 results instead
