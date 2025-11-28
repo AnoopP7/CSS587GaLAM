@@ -901,9 +901,18 @@ GaLAM::StageResults GaLAM::detectOutliers(
     std::cout << "GaLAM: Returning " << results.stage1Matches.size()
               << " matches after Stage 1 (Local Affine Matching)" << std::endl;
 
-    results.finalMatches = results.stage1Matches;
+    // Stage 2: Global geometric consistency
+    results.finalMatches = globalGeometryVerification(
+        matches, seedPoints, keypoints1, keypoints2, neighborhoods
+    );
 
-    // TODO: Stage 2 - Global geometric consistency
+    // If Stage 2 returns empty, fallback to Stage 1 results
+    if (results.finalMatches.empty()) {
+        std::cout << "GaLAM: Stage 2 returned no matches, using Stage 1 results" << std::endl;
+        results.finalMatches = results.stage1Matches;
+    }
+
+    std::cout << "GaLAM: Final matches after Stage 2: " << results.finalMatches.size() << std::endl;
 
     return results;
 }

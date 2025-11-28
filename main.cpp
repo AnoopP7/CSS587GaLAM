@@ -78,23 +78,25 @@ int main(int argc, char** argv) {
     );
 
     const auto& seedMatches = results.seedMatches;
-    const auto& filteredMatches = results.stage1Matches;
+    const auto& stage1Matches = results.stage1Matches;
+    const auto& finalMatches = results.finalMatches;
 
     // Results summary
     std::cout << "\n========================================" << std::endl;
     std::cout << "Results:" << std::endl;
-    std::cout << "  Initial matches:  " << initialMatches.size() << std::endl;
-    std::cout << "  Seed points: " << seedMatches.size() << std::endl;
-    std::cout << "  Stage 1 inliers: " << filteredMatches.size() << std::endl;
+    std::cout << "  Initial matches:   " << initialMatches.size() << std::endl;
+    std::cout << "  Seed points:       " << seedMatches.size() << std::endl;
+    std::cout << "  Stage 1 inliers:   " << stage1Matches.size() << std::endl;
+    std::cout << "  Stage 2 (final):   " << finalMatches.size() << std::endl;
 
     double reductionPercent = 0.0;
     if (!initialMatches.empty()) {
         reductionPercent =
-            100.0 * (static_cast<double>(initialMatches.size() - filteredMatches.size())
+            100.0 * (static_cast<double>(initialMatches.size() - finalMatches.size())
                      / static_cast<double>(initialMatches.size()));
     }
-    std::cout << "  Outliers removed:      " << (initialMatches.size() - filteredMatches.size()) << std::endl;
-    std::cout << "  Reduction:             " << std::fixed << std::setprecision(1) 
+    std::cout << "  Outliers removed:  " << (initialMatches.size() - finalMatches.size()) << std::endl;
+    std::cout << "  Reduction:         " << std::fixed << std::setprecision(1) 
               << reductionPercent << "%" << std::endl;
     std::cout << "========================================" << std::endl;
 
@@ -115,10 +117,16 @@ int main(int argc, char** argv) {
     std::cout << "  Saved: galam_2_seeds.jpg" << std::endl;
 
     // 3. Stage 1 inliers
-    cv::drawMatches(img1, keypoints1, img2, keypoints2, filteredMatches, output,
-                    cv::Scalar(0, 255, 0));
+    cv::drawMatches(img1, keypoints1, img2, keypoints2, stage1Matches, output,
+                    cv::Scalar(255, 255, 0));
     cv::imwrite("galam_3_stage1.jpg", output);
     std::cout << "  Saved: galam_3_stage1.jpg" << std::endl;
+
+    // 4. Stage 2 final matches
+    cv::drawMatches(img1, keypoints1, img2, keypoints2, finalMatches, output,
+                    cv::Scalar(0, 255, 0));
+    cv::imwrite("galam_4_final.jpg", output);
+    std::cout << "  Saved: galam_4_final.jpg" << std::endl;
 
     return 0;
 }
