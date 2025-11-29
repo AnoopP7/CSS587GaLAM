@@ -373,7 +373,7 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
 
         // debug output
         std::cout << "GaLAM: Neighborhood " << s
-                  << " size = " << neigh.size() << std::endl;
+                  << " size = " << neigh.size() - 1 << std::endl;
     }
 
     return neighborhoods;
