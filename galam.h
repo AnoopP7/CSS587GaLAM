@@ -59,6 +59,7 @@ private:
     // TODO: If time, refactor into an object so that we can easily have get/setX and get/setY
     struct ScoredMatch {
         cv::DMatch match;
+        cv::DMatch secondMatch;
         double confidence;
     };
 
