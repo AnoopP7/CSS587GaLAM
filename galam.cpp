@@ -470,11 +470,10 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
 ) const
 {
     // Check that we have at least 2 points; if we don't, remove this seed point and neighborhood
-    for (size_t i = 0; i < neighborhoods.size(); i++) {
+    for (int i = static_cast<int>(neighborhoods.size()) - 1; i >= 0; --i) {
         if (neighborhoods[i].size() < 2) {
             neighborhoods.erase(neighborhoods.begin() + i);
             seedPoints.erase(seedPoints.begin() + i);
-            --i;    // decrement index if we removed an item
         }
     }
 
@@ -537,6 +536,9 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         
         if (optimalTransformation.empty()) {
             std::cerr << "Couldn't find an affine transformation for neighborhood " << neighborhood << std::endl;
+            transforms.push_back(cv::Mat());
+            neighborhoods[neighborhood].clear();
+            continue;
         }
         // Keep best affine transformation
         transforms.push_back(optimalTransformation);
@@ -660,7 +662,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     modelSeedInliers.reserve(num_iterations);
 
     // RNG for sampling
-    cv::RNG rng((uint64)cv::getTickCount());
+    cv::RNG rng(42);
 
     for (int iter = 0; iter < num_iterations; ++iter) {
         // RANSAC sampling of minSampleSize from top poolSize seeds

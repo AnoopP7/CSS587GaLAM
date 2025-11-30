@@ -27,12 +27,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Scale down images for faster computation
-    double scalingFactor = 0.25;
-    //double scalingFactor = 1.0;
-    cv::resize(img1, img1, cv::Size(), scalingFactor, scalingFactor);
-    cv::resize(img2, img2, cv::Size(), scalingFactor, scalingFactor);
-
     std::cout << "Images loaded:" << std::endl;
     std::cout << "  Image 1: " << img1.cols << "x" << img1.rows << std::endl;
     std::cout << "  Image 2: " << img2.cols << "x" << img2.rows << std::endl;
