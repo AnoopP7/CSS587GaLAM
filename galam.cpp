@@ -70,6 +70,7 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
 
         ScoredMatch scored;
         scored.match = bestMatch;
+        scored.secondMatch = secondBestMatch;
         scored.confidence = 0.0;
         validMatches.push_back(scored);
     }
@@ -78,14 +79,17 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
     return validMatches;
 }
 
-// 2) Assign confidence score (reciprocal of distance)
+// 2) Assign confidence score (reciprocal of ratio test value)
 void GaLAM::assignConfidenceScore(
     std::vector<ScoredMatch>& matches
 ) const
 {
     for (auto& scored : matches) {
         double distance = std::max(static_cast<double>(scored.match.distance), 1e-6);
-        scored.confidence = 1.0 / distance;
+        double secondDistance = std::max(static_cast<double>(scored.secondMatch.distance), 1e-6);
+
+        // Calculate ratio test value
+        scored.confidence = 1.0 / (distance / secondDistance);
     }
 }
 
@@ -299,6 +303,9 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
     // Outer loop: for each seed point
     // compute R2 based on seed scale
     for (size_t s = 0; s < seedPoints.size(); ++s) {
+        if (s == 100) {
+            std::cout << s << std::endl;
+        }
         const ScoredMatch& seed = seedPoints[s];
         // extract the corresponding keypoints in image 1 and 2 for this seed
         const cv::KeyPoint& kp1Seed = keypoints1[seed.match.queryIdx];
@@ -328,7 +335,7 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             const cv::KeyPoint& kp2 = keypoints2[m.match.trainIdx];
 
             // Check that this is not a seed point
-            if (seed.match.queryIdx == m.match.queryIdx || seed.match.trainIdx == m.match.trainIdx) continue;
+            if (seed.match.queryIdx == m.match.queryIdx && seed.match.trainIdx == m.match.trainIdx) continue;
 
             // 1) Distance constraint (Eq.1)
             // spatial constraint in image1
