@@ -316,8 +316,8 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
         double sigma1Seed = std::max(static_cast<double>(kp1Seed.size), 1e-6);
         double sigma2Seed = std::max(static_cast<double>(kp2Seed.size), 1e-6);
         double sigmaSeed  = sigma2Seed / sigma1Seed;
-        // compute R2 if needed 
-        //double R2 = R1 / sigmaSeed;
+        // Eq.3: compute per-seed R2
+        double R2_seed = R1 / sigmaSeed;
 
         // Seed's relative rotation between image 1 and 2
         // seed rotation α_S
@@ -348,7 +348,7 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             double dx2 = kp2.pt.x - kp2Seed.pt.x;
             double dy2 = kp2.pt.y - kp2Seed.pt.y;
             double d2  = std::sqrt(dx2 * dx2 + dy2 * dy2);
-            if (d2 > lambda1 * R2) continue;
+            if (d2 > lambda1 * R2_seed) continue;
 
             // 2) Rotation constraint (Eq.2)
             // rotation constraint
@@ -368,10 +368,6 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             double ratio     = sigmaCand / sigmaSeed;
             // if scale difference in log domain is too large, reject this candidate
             if (std::fabs(std::log(ratio)) > tSigma) continue;
-
-            // 3) Scale constraint (Eq.3)
-            // TODO: Test this since they might not be exactly equal
-            if (R2 == R1 / sigmaSeed) continue;
 
             // if we reach here, the match passes all constraints for this seed
             // add index 'i' to the neighborhood of seed 's'

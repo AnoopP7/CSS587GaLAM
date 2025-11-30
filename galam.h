@@ -23,7 +23,7 @@ public:
         InputParameters()
         : ratio(100.0),
           rt_threshold(0.8),
-          epsilon(1e-6),
+          epsilon(1.0),
           // lamba could be different values
           lambda1(4.0), lambda2(2.0), lambda3(0.8),
           tAlpha(10.0),
