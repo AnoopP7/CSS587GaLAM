@@ -291,7 +291,7 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
 
     // precompute base radius R1
     double R1 = computeBaseRadius(imageSize1);
-    double R2 = computeBaseRadius(imageSize2);
+    //double R2 = computeBaseRadius(imageSize2);
     // allocate one neighborhood per seed match
     neighborhoods.resize(seedPoints.size());
 
@@ -303,9 +303,9 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
     // Outer loop: for each seed point
     // compute R2 based on seed scale
     for (size_t s = 0; s < seedPoints.size(); ++s) {
-        if (s == 100) {
-            std::cout << s << std::endl;
-        }
+        //if (s == 102) {
+        //    std::cout << s << std::endl;
+        //}
         const ScoredMatch& seed = seedPoints[s];
         // extract the corresponding keypoints in image 1 and 2 for this seed
         const cv::KeyPoint& kp1Seed = keypoints1[seed.match.queryIdx];
@@ -317,7 +317,7 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
         double sigma2Seed = std::max(static_cast<double>(kp2Seed.size), 1e-6);
         double sigmaSeed  = sigma2Seed / sigma1Seed;
         // compute R2 if needed 
-        //double R2 = R1 / sigmaSeed;
+        double R2 = R1 / sigmaSeed;
 
         // Seed's relative rotation between image 1 and 2
         // seed rotation α_S
@@ -353,25 +353,29 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             // 2) Rotation constraint (Eq.2)
             // rotation constraint
             // compute candidate match relative rotation
-            double alphaCand = normalizeAngle(kp2.angle - kp1.angle);
+            //double alphaCand = normalizeAngle(kp2.angle - kp1.angle);
+            double alphaCand = kp2.angle - kp1.angle;
             // absolute difference in rotation between candidate and seed
-            double dAlpha    = std::fabs(normalizeAngle(alphaCand - alphaSeed));
+            //double dAlpha    = std::fabs(normalizeAngle(alphaCand - alphaSeed));
+            double dAlpha    = std::fabs(alphaCand - alphaSeed);
 
             // if the rotation difference is too large, reject this candidate
             if (dAlpha > tAlpha) continue;
 
             // Scale constraint in log domain (Eq.2)
             // similar to rotation constraint but for scale: | log( sigmaCand / sigmaSeed ) | <= tSigma
-            double sigma1C = std::max(static_cast<double>(kp1.size), 1e-6);
-            double sigma2C = std::max(static_cast<double>(kp2.size), 1e-6);
-            double sigmaCand = sigma2C / sigma1C;
-            double ratio     = sigmaCand / sigmaSeed;
+            double sigma1Cand = std::max(static_cast<double>(kp1.size), 1e-6);
+            double sigma2Cand = std::max(static_cast<double>(kp2.size), 1e-6);
+            double sigmaCand = sigma2Cand / sigma1Cand;
+            //double ratio     = sigmaCand / sigmaSeed;
+            double ratio     = sigmaSeed / sigmaCand;
             // if scale difference in log domain is too large, reject this candidate
             if (std::fabs(std::log(ratio)) > tSigma) continue;
 
             // 3) Scale constraint (Eq.3)
             // TODO: Test this since they might not be exactly equal
-            if (R2 == R1 / sigmaSeed) continue;
+            //if (R2 == R1 / sigmaSeed) continue;
+            //if (R2 != R1 / sigmaSeed) continue; // This is what it should be, and it completely eliminates everything
 
             // if we reach here, the match passes all constraints for this seed
             // add index 'i' to the neighborhood of seed 's'
