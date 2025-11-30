@@ -373,7 +373,7 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
 
         // debug output
         std::cout << "GaLAM: Neighborhood " << s
-                  << " size = " << neigh.size() - 1 << std::endl;
+                  << " size = " << neigh.size() << std::endl;
     }
 
     return neighborhoods;
@@ -441,8 +441,8 @@ void GaLAM::preprocessSets(
             normalizedKeypoints1[query].x = (keypoint1.pt.x - seedPoint1.pt.x) / (params_.lambda1 * R1);
             normalizedKeypoints1[query].y = (keypoint1.pt.y - seedPoint1.pt.y) / (params_.lambda1 * R1);
 
-            normalizedKeypoints2[query].x = (keypoint2.pt.x - seedPoint2.pt.x) / (params_.lambda1 * R2);
-            normalizedKeypoints2[query].y = (keypoint2.pt.y - seedPoint2.pt.y) / (params_.lambda1 * R2);
+            normalizedKeypoints2[train].x = (keypoint2.pt.x - seedPoint2.pt.x) / (params_.lambda1 * R2);
+            normalizedKeypoints2[train].y = (keypoint2.pt.y - seedPoint2.pt.y) / (params_.lambda1 * R2);
             //keypoint1.pt.x = (keypoint1.pt.x - seedPoint1.pt.x) / (params_.lambda1 * R1);
             //keypoint2.pt.x = (keypoint2.pt.x - seedPoint2.pt.x) / (params_.lambda1 * R2);
         }
@@ -506,6 +506,12 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         for (int j = 0; j < params_.num_iterations; j++) {
             cv::Mat transformation = cv::estimateAffinePartial2D(points1, points2, cv::noArray(), cv::RANSAC, 3, 1, 0.99, 10);
 
+            // Move on if we couldn't fit a matrix
+            if (transformation.empty()) {
+                //std::cout << "Couldn't fit a matrix" << std::endl;
+                continue;
+            }
+
             // Find the residual rk for each correspondence point pair in the neighborhood
             int score = 0;
             for (int match : neighborhoods[neighborhood]) {
@@ -522,6 +528,9 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
             }
         }
         
+        if (optimalTransformation.empty()) {
+            std::cerr << "Couldn't find an affine transformation for neighborhood " << neighborhood << std::endl;
+        }
         // Keep best affine transformation
         transforms.push_back(optimalTransformation);
 
@@ -562,12 +571,15 @@ double GaLAM::measureAffineResidual(
     matPoint1(1, 0) = point1.y;
     matPoint1(2, 0) = 1.0;
 
+    //std::cout << "(" << point1.x << ", " << point1.y << ") = <" << matPoint1 << ">" << std::endl;
+
     cv::Mat_<double> matPoint2(2, 1);
     matPoint2(0, 0) = point2.x;
     matPoint2(1, 0) = point2.y;
 
     // Compute matrix multiplication
     cv::Mat result = (transformation * matPoint1) - matPoint2;
+    //std::cout << "transformation:\n" << transformation << "\n\nmatPoint1:\n" << matPoint1 << "\n\nmatPoint2:\n" << matPoint2 << std::endl;
 
     // Get norm of resulting vector
     // Should this be L2 norm or something else?
