@@ -35,9 +35,9 @@ int main(int argc, char **argv)
     std::cout << "  Image 1: " << img1.cols << "x" << img1.rows << std::endl;
     std::cout << "  Image 2: " << img2.cols << "x" << img2.rows << std::endl;
 
-    // double scalingFactor = 0.25;
-    // cv::resize(img1, img1, cv::Size(), scalingFactor, scalingFactor);
-    // cv::resize(img2, img2, cv::Size(), scalingFactor, scalingFactor);
+    double scalingFactor = 0.25;
+    cv::resize(img1, img1, cv::Size(), scalingFactor, scalingFactor);
+    cv::resize(img2, img2, cv::Size(), scalingFactor, scalingFactor);
 
     // Convert to grayscale
     cv::Mat gray1, gray2;

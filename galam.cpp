@@ -754,7 +754,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
         if (keepSeed[i])
             ++keptSeeds;
 
-    std::cout << "STAGE 2: kept " << keptSeeds << " / " << numSeeds << " seeds" << std::endl;
+    std::cout << "GaLAM: Stage 2: kept " << keptSeeds << " / " << numSeeds << " seeds" << std::endl;
 
     std::vector<cv::DMatch> finalMatches;
     finalMatches.reserve(matches.size());
@@ -764,7 +764,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
             finalMatches.push_back(matches[i].match);
     }
 
-    std::cout << "STAGE 2: returning " << finalMatches.size()
+    std::cout << "GaLAM: Stage 2: returning " << finalMatches.size()
               << " matches after global geometry detection." << std::endl;
 
     return finalMatches;
