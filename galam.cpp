@@ -1,9 +1,5 @@
 // galam.cpp
-/*
-Title: GaLAM: Two-Stage Outlier Detection Algorithm
-Author: X. Lu, Z. Yan, Z. Fan
-Implemented in C++ by: Anoop Prasal, Neha Kotwal, Yu Dinh
-*/
+
 #include "galam.h"
 #include <opencv2/features2d.hpp>
 #include <opencv2/calib3d.hpp>
@@ -546,7 +542,17 @@ double GaLAM::measureAffineResidual(
     return residual;
 }
 
-// Stage 2
+//================================================================
+// Stage 2: Global Geometry Verification
+//================================================================
+
+// GlobalGeometryVerification
+// RANSAC to fit fundamental matrix over seed points
+// Evaluate models over all seed points
+// Select strong models and seeds
+// Return inlier matches
+// Precondition: matches and seedPoints are non-empty
+// Postcondition: returns inlier matches after global geometry verification
 std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     const std::vector<ScoredMatch> &matches,
     const std::vector<ScoredMatch> &seedPoints,
@@ -554,6 +560,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     const std::vector<cv::KeyPoint> &keypoints2,
     const std::vector<std::set<int>> &neighborhoods) const
 {
+    // Number of seed points
     const int numSeeds = static_cast<int>(seedPoints.size());
 
     int minSampleSize = params_.minSampleSize;   // 8
@@ -562,18 +569,21 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     double lambda3 = params_.lambda3;            // lambda3 from paper
 
     // Basic sanity checks
+    // Precondition: matches and seedPoints are non-empty
     if (numSeeds == 0)
     {
         std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): No seeds provided." << std::endl;
         return {};
     }
 
+    // Precondition: matches and seedPoints are non-empty
     if (matches.empty())
     {
         std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): No matches provided." << std::endl;
         return {};
     }
 
+    // Precondition: neighborhoods.size() == seedPoints.size()
     if (static_cast<int>(neighborhoods.size()) != numSeeds)
     {
         std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): neighborhoods.size() ("
@@ -582,6 +592,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
         return {};
     }
 
+    //  Precondition: enough seeds for 8-point fundamental matrix
     if (numSeeds < minSampleSize)
     {
         std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): Not enough seeds for 8-point "
@@ -593,22 +604,31 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     // Store model supports and which seeds are inliers per model
     std::vector<int> modelSupports;
     std::vector<std::vector<bool>> modelSeedInliers;
+    // Pre-allocate space
     modelSupports.reserve(num_iterations);
     modelSeedInliers.reserve(num_iterations);
 
+    // Random number generator
     cv::RNG rng((uint64)cv::getTickCount());
 
-    // --- RANSAC over seeds ---
+    // The RANSAC loop
+    // For each iteration:
+    //   1) Randomly sample 8 seed points
+    //   2) Fit fundamental matrix using 8-point algorithm
+    //   3) Evaluate model over all seed points
+    //   4) Record model support and which seeds are inliers
     for (int iter = 0; iter < num_iterations; ++iter)
     {
         std::vector<int> sampleSeedIndices;
         sampleSeedIndices.reserve(minSampleSize);
         std::vector<bool> used(numSeeds, false);
 
+        // Randomly sample minSampleSize unique seed points
         int attempts = 0;
         while (static_cast<int>(sampleSeedIndices.size()) < minSampleSize &&
                attempts < 100 * minSampleSize)
         {
+            // Random index in [0, numSeeds)
             int idx = rng.uniform(0, numSeeds);
             if (used[idx])
             {
@@ -627,6 +647,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
         pts1.reserve(minSampleSize);
         pts2.reserve(minSampleSize);
 
+        // Gather the sampled seed points
         for (int seedIdx : sampleSeedIndices)
         {
             const ScoredMatch &sm = seedPoints[seedIdx];
@@ -636,35 +657,45 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
             pts2.push_back(kp2.pt);
         }
 
+        // Fit fundamental matrix using 8-point algorithm
         cv::Mat F = cv::findFundamentalMat(pts1, pts2, cv::FM_8POINT);
         if (F.empty())
             continue;
 
+        // Evaluate model over all seed points
         cv::Matx33d Fm;
         F.convertTo(Fm, CV_64F);
 
+        // Count inliers among all seed points
         std::vector<bool> seedInlier(numSeeds, false);
         int supportCount = 0;
 
+        // For each seed point, compute the epipolar constraint error
         for (int i = 0; i < numSeeds; ++i)
         {
+            // Get seed point
             const ScoredMatch &sm = seedPoints[i];
             const cv::KeyPoint &kp1 = keypoints1[sm.match.queryIdx];
             const cv::KeyPoint &kp2 = keypoints2[sm.match.trainIdx];
 
+            // Homogeneous coordinates
             cv::Vec3d x(kp1.pt.x, kp1.pt.y, 1.0);
             cv::Vec3d xp(kp2.pt.x, kp2.pt.y, 1.0);
 
+            // Epipolar line in image 2: l' = F * x
             cv::Vec3d l = Fm * x;
             double a = l[0], b = l[1], c = l[2];
 
+            // Compute distance from point to epipolar line
             double denom = std::sqrt(a * a + b * b);
             if (denom < 1e-12)
                 continue;
 
+            // Distance r = |a*x' + b*y' + c| / sqrt(a^2 + b^2)
             double num = std::fabs(a * xp[0] + b * xp[1] + c);
             double r = num / denom;
 
+            // Check inlier condition
             if (r <= epsilon)
             {
                 seedInlier[i] = true;
@@ -672,15 +703,17 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
             }
         }
 
+        // Record model support and seed inliers
         if (supportCount == 0)
             continue;
 
+        // Store results
         modelSupports.push_back(supportCount);
         modelSeedInliers.push_back(std::move(seedInlier));
     }
 
-    // --- After RANSAC: select strong models and seeds ---
-
+    // After RANSAC, check if any models were generated
+    // and find the maximum support
     if (modelSupports.empty())
     {
         std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): No valid fundamental "
@@ -688,6 +721,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
         return {};
     }
 
+    // Find maximum model support
     int omax = *std::max_element(modelSupports.begin(), modelSupports.end());
     if (omax <= 0)
     {
@@ -703,9 +737,11 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
         // Check if this model is "strong" (support >= lambda3 * omax)
         if (modelSupports[m] >= lambda3 * omax)
         {
+            // Keep seeds that are inliers to this model
             const auto &seedInlier = modelSeedInliers[m];
             for (int i = 0; i < numSeeds; ++i)
             {
+                // Check if this seed is an inlier to the current model
                 if (seedInlier[i])
                     keepSeed[i] = true;
             }
@@ -728,12 +764,15 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     {
         std::cout << "[WARNING] GaLAM Stage 2: Lambda3 filtering removed all seeds, using best model." << std::endl;
         int bestModelIdx = 0;
+        // Find model with maximum support
         for (size_t m = 1; m < modelSupports.size(); ++m)
         {
+            // Check if this model has higher support
             if (modelSupports[m] > modelSupports[bestModelIdx])
                 bestModelIdx = static_cast<int>(m);
         }
 
+        // Keep seeds that are inliers to the best model
         const auto &bestSeedInliers = modelSeedInliers[bestModelIdx];
         for (int i = 0; i < numSeeds; ++i)
             keepSeed[i] = bestSeedInliers[i];
@@ -746,7 +785,9 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
         if (!keepSeed[i])
             continue;
 
+        // Add all matches in this seed's neighborhood
         const auto &neigh = neighborhoods[i];
+        // Mark matches as good
         for (int idx : neigh)
         {
             if (idx >= 0 && idx < static_cast<int>(matches.size()))
@@ -754,6 +795,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
         }
     }
 
+    // Report statistics
     int keptSeeds = 0;
     for (int i = 0; i < numSeeds; ++i)
         if (keepSeed[i])
@@ -761,8 +803,11 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
 
     std::cout << "GaLAM: Stage 2: kept " << keptSeeds << " / " << numSeeds << " seeds" << std::endl;
 
+    // Collect final matches
+    // Return only matches marked as good
     std::vector<cv::DMatch> finalMatches;
     finalMatches.reserve(matches.size());
+    // Iterate through matches and add those marked as good
     for (size_t i = 0; i < matches.size(); ++i)
     {
         if (isGoodMatch[i])
@@ -850,7 +895,6 @@ GaLAM::StageResults GaLAM::detectOutliers(
 
     results.finalMatches = results.stage1Matches;
 
-    // TODO: Stage 2 - Global geometric consistency
     // Stage 2: Global geometric consistency
     results.finalMatches = globalGeometryVerification(
         matches, seedPoints, keypoints1, keypoints2, neighborhoods);

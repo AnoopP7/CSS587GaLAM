@@ -75,6 +75,11 @@ private:
     };
 
     // Seed point selection
+    // Select seed points from initial matches
+    // using bidirectional NN + ratio test + non-maximum suppression
+    // Returns selected seed points
+    // Precondition: matches is non-empty
+    // Postcondition: matches is filtered to only include bidirectional NN matches
     std::vector<ScoredMatch> selectSeedPoints(
         std::vector<ScoredMatch> &matches,
         const std::vector<cv::KeyPoint> &keypoints1,
@@ -163,51 +168,6 @@ private:
         const std::vector<cv::KeyPoint> &keypoints1,
         const std::vector<cv::KeyPoint> &keypoints2,
         const std::vector<std::set<int>> &neighborhoods) const;
-    // void filterByAffineResidual(
-    //     const std::vector<ScoredMatch>& matches,
-    //     const std::vector<ScoredMatch>& seedPoints,
-    //     std::vector<std::set<int>>& neighborhoods,
-    //     std::vector<cv::Mat> transformations
-    //) const;
-
-    /*cv::Mat sampleSeedPoints(
-        const std::vector<ScoredMatch>& matches,
-        const std::vector<ScoredMatch>& seedPoints,
-        std::vector<std::set<int>>& neighborhoods
-    ) const;*/
-
-    // std::vector<ScoredMatch> filterByDistance(
-    //     const std::vector<ScoredMatch>& matches,
-    //     const std::vector<ScoredMatch>& seedPoints,
-    //     const std::vector<cv::KeyPoint>& keypoints1,
-    //     const std::vector<cv::KeyPoint>& keypoints2,
-    //     const double radius1,
-    //     const double radius2
-    // ) const;
-
-    // std::vector<ScoredMatch> filterByScaleRotation(
-    //     const std::vector<ScoredMatch>& matches,
-    //     const std::vector<ScoredMatch>& seedPoints,
-    //     const std::vector<cv::KeyPoint>& keypoints1,
-    //     const std::vector<cv::KeyPoint>& keypoints2
-    // ) const;
-
-    // For now, proceeding under the assumption that R1 is the same for all seed points and
-    // calculated the same way as R in previous step but R2 is not
-
-    // Actually assuming that R1 and R2 are arbitrary, and different for each correspondence
-    // std::vector<GaLAM::ScoredMatch> filterByImageScale(
-    //     const std::vector<ScoredMatch>& matches,
-    //     const std::vector<ScoredMatch>& seedPoints,
-    //     const std::vector<cv::KeyPoint>& keypoints1,
-    //     const std::vector<cv::KeyPoint>& keypoints2,
-    //     const cv::Size& imageSize1,
-    //     const cv::Size& imageSize2,
-    //     const double radius1,
-    //     const double radius2
-    // ) const;
 };
-
-//} // namespace galam
 
 #endif // GALAM_H
