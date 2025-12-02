@@ -1,3 +1,10 @@
+// galam.h
+/*
+Title: GaLAM: Two-Stage Outlier Detection Algorithm
+Author: X. Lu, Z. Yan, Z. Fan
+Implemented in C++ by: Anoop Prasal, Neha Kotwal, Yu Dinh
+*/
+
 #ifndef GALAM_H
 #define GALAM_H
 

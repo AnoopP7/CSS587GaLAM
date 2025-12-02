@@ -1,3 +1,9 @@
+// galam.cpp
+/*
+Title: GaLAM: Two-Stage Outlier Detection Algorithm
+Author: X. Lu, Z. Yan, Z. Fan
+Implemented in C++ by: Anoop Prasal, Neha Kotwal, Yu Dinh
+*/
 #include "galam.h"
 #include <opencv2/features2d.hpp>
 #include <opencv2/calib3d.hpp>
@@ -8,7 +14,6 @@
 #include <set>
 
 // namespace galam {
-
 GaLAM::GaLAM(const InputParameters &params)
     : params_(params) {}
 
