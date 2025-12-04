@@ -1,18 +1,56 @@
-// galam.cpp
+/*
+ * galam.cpp
+ * Implements the GaLAM outlier detection algorithm in C++
+ * Implementation authors: Yu Dinh, Neha Kotwal, Anoop Prasad
+ * Paper title: GaLAM: Two-Stage Outlier Detection Algorithm
+ * Paper authors: X. Lu, Z. Yan, Z. Fan
+ */
+
+ // TODO: Fix the crashing issue on certain outputs
+ // TODO: Implement OpenCV outlier detection interface if possible
+ // TODO: General code cleanup
+ // TODO: Make sure error handling is robust and correct (e.g. if we return an empty vector, don't do anything with it)
 
 #include "galam.h"
+
 #include <opencv2/features2d.hpp>
 #include <opencv2/calib3d.hpp>
-#include <numeric>
+
 #include <algorithm>
-#include <iostream>
 #include <cmath>
+#include <iostream>
+#include <numeric>
 #include <set>
 
-// namespace galam {
+// Constructor
+// Constructs a GaLAM object based on the given InputParameters struct
+// Preconditions: params includes valid parameters for GaLAM algorithm
+// Postconditions: Initializes GaLAM object using the params
+/*
+ * Parameters:
+ * params: InputParameters struct containing parameters to use for the algorithm
+ *
+ * Return:
+ * GaLAM object
+ */
 GaLAM::GaLAM(const InputParameters &params)
     : params_(params) {}
 
+// selectSeedPoints
+// Selects seed points to be used throughout the algorithm
+// Preconditions: Valid parameters are provided
+// Postconditions: Returns a vector of seed points
+/*
+ * Parameters:
+ * matches: Empty vector of ScoredMatch to store all matches found
+ * keypoints1: vector of cv::KeyPoint containing the keypoints from the first image
+ * descriptors1: cv::Mat containing the descriptors for the first image
+ * descriptors2: cv::Mat containing the descriptors for the second image
+ * imageSize1: cv::Size representing the size of the first image
+ *
+ * Return:
+ * std::vector<GaLAM::ScoredMatch> of seed points found
+ */
 std::vector<GaLAM::ScoredMatch> GaLAM::selectSeedPoints(
     std::vector<ScoredMatch> &matches,
     const std::vector<cv::KeyPoint> &keypoints1,
@@ -20,23 +58,37 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectSeedPoints(
     const cv::Mat &descriptors2,
     const cv::Size &imageSize1) const
 {
-    // 1) Bidirectional NN + ratio test
+    // Perform bidirectional nearest neighbor matching to filter out unreliable matches
     matches = filterBidirectionalNN(descriptors1, descriptors2);
+
+    // If no matches were found, return empty vector
     if (matches.empty())
     {
         std::cout << "GaLAM: No matches after bidirectional NN." << std::endl;
         return std::vector<ScoredMatch>();
     }
 
-    // 2) Assign confidence (1 / distance)
+    // Assign confidence score to each match (reciprocal of ratio test value)
     assignConfidenceScore(matches);
 
-    // 3) Seed selection with non-maximum suppression
+    // Select highest scoring points within a radius as seed points using non-maximum suppression
     std::vector<ScoredMatch> seeds = selectPoints(matches, keypoints1, imageSize1);
 
     return seeds;
 }
 
+// filterBidirectionalNN
+// Filters out unreliable matches using bidirectional nearest neighbor matching
+// Preconditions: Descriptors for both images are provided
+// Postconditions: Returns a vector of matches
+/*
+ * Parameters:
+ * descriptors1: cv::Mat containing the descriptors for the first image
+ * descriptors2: cv::Mat containing the descriptors for the second image
+ *
+ * Return:
+ * std::vector<GaLAM::ScoredMatch> of matches found so far
+ */
 std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
     const cv::Mat &descriptors1,
     const cv::Mat &descriptors2) const
@@ -44,35 +96,44 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
     std::vector<std::vector<cv::DMatch>> knn12, knn21;
 
     // If slow, FLANN instead
+    // TODO: Make sure we actually use the matches that we get with nearest neighbor matching initially to improve efficiency
     cv::BFMatcher matcher(cv::NORM_L2);
     matcher.knnMatch(descriptors1, descriptors2, knn12, 2);
     matcher.knnMatch(descriptors2, descriptors1, knn21, 2);
 
     std::vector<ScoredMatch> validMatches;
 
+    // Iterate through first direction
     for (int i = 0; i < static_cast<int>(knn12.size()); ++i)
     {
+        // If not enough data to compare, continue to next
         if (knn12[i].size() < 2)
             continue;
 
+        // Get best two matches from image 1 to image 2
         const cv::DMatch &bestMatch = knn12[i][0];
         const cv::DMatch &secondBestMatch = knn12[i][1];
 
+        // Apply ratio test (TODO: Should we have this?)
         if (bestMatch.distance >= params_.rt_threshold * secondBestMatch.distance)
             continue;
 
+        // Get index of best match in each image
         int queryIdx = bestMatch.queryIdx;
         int trainIdx = bestMatch.trainIdx;
 
+        // Check validity of index and match in other image
         if (trainIdx < 0 || trainIdx >= static_cast<int>(knn21.size()))
             continue;
         if (knn21[trainIdx].empty())
             continue;
 
+        // Perform bidirectional check from image 2 to image 1
         const cv::DMatch &reverseMatch = knn21[trainIdx][0];
         if (reverseMatch.trainIdx != queryIdx)
             continue;
 
+        // If all conditions satisfied, add this match to return vector
         ScoredMatch scored;
         scored.match = bestMatch;
         // scored.secondMatch = secondBestMatch;
@@ -84,10 +145,18 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
     return validMatches;
 }
 
-// 2) Assign confidence score (reciprocal of distance)
+// assignConfidenceScore
+// Assign confidence score to each match, defined as the reciprocal of the ratio test value
+// Preconditions: vector of matches is provided
+// Postconditions: The score for each ScoredMatch is assigned
+/*
+ * Parameters:
+ * matches: vector of ScoredMatch to store all matches found
+ */
 void GaLAM::assignConfidenceScore(
     std::vector<ScoredMatch> &matches) const
 {
+    // Assign a score of the reciprocal of the ratio test score to each match
     for (auto &scored : matches)
     {
         double distance = std::max(static_cast<double>(scored.match.distance), 1e-6);
@@ -97,17 +166,29 @@ void GaLAM::assignConfidenceScore(
     }
 }
 
-// 3) Select seed points using non-maximum suppression
-// This R is global for the whole image pair.
-// It is used ONLY for NMS—NOT the local neighborhood radius (R1, R2).
+// selectPoints
+// Selects high-scoring points as seed points using non-maximum suppression 
+// Preconditions: vector of matches with initialized scores and keypoints and size for first image are provided
+// Postconditions: Returns the vector of seed points found
+/*
+ * Parameters:
+ * matches: vector of ScoredMatch to store all matches found, along with their scores
+ * keypoints1: vector of cv::KeyPoint containing the keypoints from the first image
+ * imageSize1: cv::Size representing the size of the first image
+ *
+ * Return:
+ * std::vector<GaLAM::ScoredMatch> of seed points found
+ */
 std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
     const std::vector<ScoredMatch> &matches,
     const std::vector<cv::KeyPoint> &keypoints1,
     const cv::Size &imageSize1) const
 {
+    // Return empty vector if we found no matches
     if (matches.empty())
         return {};
 
+    // TODO: Do we need this comment?
     // ----------------------------------------------------------------------
     // Compute GaLAM global NMS radius R
     //
@@ -122,14 +203,20 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
     //     - The NMS region area πR² = total_image_area / r_a
     //     - Ensures seed points are evenly distributed spatially
     // ----------------------------------------------------------------------
-    double globalSeedRadius_R;
+    
+    // Calculate the radius for non-maximum suppression
+    double imageArea = static_cast<double>(imageSize1.width) *
+        static_cast<double>(imageSize1.height);
+    double globalSeedRadius_R = std::sqrt(imageArea / (CV_PI * params_.ratio));
+    /*double globalSeedRadius_R;
     {
         double imageArea = static_cast<double>(imageSize1.width) *
                            static_cast<double>(imageSize1.height);
         globalSeedRadius_R = std::sqrt(imageArea / (CV_PI * params_.ratio));
-    }
+    }*/
+    // TODO: Can we use the computeBaseRadius() function? Why was this done the way above?
 
-    // Sort indices by confidence descending
+    // Sort indices by confidence, descending
     std::vector<int> sortedIndices(matches.size());
     std::iota(sortedIndices.begin(), sortedIndices.end(), 0);
     std::sort(sortedIndices.begin(), sortedIndices.end(),
@@ -170,7 +257,8 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
                 isSuppressed[j] = true;
             }
         }
-
+        
+        // Keep track of the seed point we selected
         seedPoints.push_back(seedMatch);
     }
 
@@ -178,7 +266,17 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
     return seedPoints;
 }
 
-// helper: normalize angle difference (in degrees) to range [-180, 180)
+// normalizeAngle
+// Helper function to normalize angle difference (in degrees) to the range [-180, 180)
+// Preconditions: angle to normalize is provided as parameter
+// Postconditions: Returns the normalized angle
+/*
+ * Parameters:
+ * angle: double of the angle to be normalized
+ *
+ * Return:
+ * double of the normalized angle
+ */
 static double normalizeAngle(double angle)
 {
     while (angle <= -180.0)
