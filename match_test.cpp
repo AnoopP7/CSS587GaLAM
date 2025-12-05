@@ -72,15 +72,17 @@ MatchTest::Metrics MatchTest::evaluateMatches(
     
     Metrics m;
     m.correspondences = (int)matches.size();
+    m.avg_error = 0.0;
+    m.inlier_pct = 0.0;
     m.he_pct = 0.0;
-    m.ap_pct = 0.0;
     m.runtime_ms = runtime_ms;
     
     if (matches.empty() || gtH.empty()) return m;
 
     cv::Mat H;
     gtH.convertTo(H, CV_64F);
-    int he_count = 0, ap_count = 0;
+    int he_count = 0, inlier_count = 0;
+    double total_error = 0.0;
 
     for (const auto& match : matches) {
         cv::Point2f p1 = kp1[match.queryIdx].pt, p2 = kp2[match.trainIdx].pt;
@@ -89,19 +91,21 @@ MatchTest::Metrics MatchTest::evaluateMatches(
         double py = (H.at<double>(1,0)*p1.x + H.at<double>(1,1)*p1.y + H.at<double>(1,2)) / w;
         double e = std::sqrt((px-p2.x)*(px-p2.x) + (py-p2.y)*(py-p2.y));
         
-        if (e < 1.0) ++he_count;  // %H.E threshold
-        if (e < 3.0) ++ap_count;  // AP threshold
+        total_error += e;
+        if (e < 1.0) ++he_count;
+        if (e < 3.0) ++inlier_count;
     }
 
-    m.he_pct = 100.0 * he_count / matches.size();  // %H.E
-    m.ap_pct = 100.0 * ap_count / matches.size();  // AP
+    m.avg_error = total_error / matches.size();
+    m.he_pct = 100.0 * he_count / matches.size();
+    m.inlier_pct = 100.0 * inlier_count / matches.size();
     return m;
 }
 
 void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath) {
     std::vector<std::string> scenes = {"bark","bikes","boat","graf","leuven","trees","ubc","wall"};
     std::ofstream csv(csvPath);
-    csv << "Scene,Pair,Method,Correspondences,%H.E,AP,Runtime_ms\n";
+    csv << "Scene,Pair,Method,Correspondences,AvgError,Inlier%,H.E%,Runtime_ms\n";
 
     auto loadH = [](const std::string& p) {
         cv::Mat H = cv::Mat::eye(3,3,CV_64F);
@@ -115,11 +119,14 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
         return "";
     };
 
-    // Accumulators for viewpoint (graf, wall) and light (leuven) scenes
+    // Accumulators for summary
+    std::map<std::string, std::vector<double>> all_corr, all_err, all_inlier, all_time;
+    // Accumulators for Table 1 (viewpoint and light)
     std::map<std::string, std::vector<double>> vp_he, vp_ap, lt_he, lt_ap;
 
     std::cout << std::fixed << std::setprecision(2);
-    std::cout << "Scene\tPair\tMethod\tCorr\t%H.E\tAP\tTime(ms)\n" << std::string(60,'-') << "\n";
+    std::cout << "Scene\tPair\tMethod\tCorr\tAvgErr\tInlier%\tTime(ms)\n";
+    std::cout << std::string(60,'-') << "\n";
 
     for (const auto& scene : scenes) {
         std::string sp = dataPath + "/" + scene;
@@ -157,23 +164,32 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
 
                     std::string mname = methodName(method);
                     csv << scene << "," << "1-" << i << "," << mname << ","
-                        << m.correspondences << "," << m.he_pct << "," << m.ap_pct << "," << m.runtime_ms << "\n";
+                        << m.correspondences << "," << m.avg_error << "," << m.inlier_pct << "," 
+                        << m.he_pct << "," << m.runtime_ms << "\n";
                     std::cout << scene << "\t1-" << i << "\t" << mname << "\t"
-                              << m.correspondences << "\t" << m.he_pct << "\t" << m.ap_pct << "\t" << m.runtime_ms << "\n";
-                              
-                    if (isViewpoint) { vp_he[mname].push_back(m.he_pct); vp_ap[mname].push_back(m.ap_pct); }
-                    if (isLight) { lt_he[mname].push_back(m.he_pct); lt_ap[mname].push_back(m.ap_pct); }
+                              << m.correspondences << "\t" << m.avg_error << "\t" 
+                              << m.inlier_pct << "\t" << m.runtime_ms << "\n";
+
+                    // Accumulate for summary
+                    all_corr[mname].push_back(m.correspondences);
+                    all_err[mname].push_back(m.avg_error);
+                    all_inlier[mname].push_back(m.inlier_pct);
+                    all_time[mname].push_back(m.runtime_ms);
+
+                    // Accumulate for Table 1
+                    if (isViewpoint) { vp_he[mname].push_back(m.he_pct); vp_ap[mname].push_back(m.inlier_pct); }
+                    if (isLight) { lt_he[mname].push_back(m.he_pct); lt_ap[mname].push_back(m.inlier_pct); }
                 }
             }
         }
     }
 
-    // Print Table summary
     auto avg = [](const std::vector<double>& v) { 
         return v.empty() ? 0.0 : std::accumulate(v.begin(), v.end(), 0.0) / v.size(); 
     };
 
-    std::cout << "\n===== SUMMARY =====\n";
+    // Homography Estimation
+    std::cout << "\n===== HOMOGRAPHY ESTIMATION =====\n";
     std::cout << std::left << std::setw(10) << "Method" 
               << std::right << std::setw(12) << "VP %H.E" << std::setw(10) << "VP AP"
               << std::setw(12) << "Light %H.E" << std::setw(10) << "Light AP" << "\n";
@@ -183,6 +199,23 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
         std::cout << std::left << std::setw(10) << mname
                   << std::right << std::setw(12) << avg(vp_he[mname]) << std::setw(10) << avg(vp_ap[mname])
                   << std::setw(12) << avg(lt_he[mname]) << std::setw(10) << avg(lt_ap[mname]) << "\n";
+    }
+
+    // Summary
+    std::cout << "\n===== SUMMARY =====\n";
+    std::cout << std::left << std::setw(10) << "Method"
+              << std::right << std::setw(12) << "Avg Corr"
+              << std::setw(12) << "Avg Error"
+              << std::setw(12) << "Inlier %"
+              << std::setw(12) << "Runtime(ms)" << "\n";
+    std::cout << std::string(58, '-') << "\n";
+
+    for (const auto& mname : {"NN+RT", "RANSAC", "GaLAM"}) {
+        std::cout << std::left << std::setw(10) << mname
+                  << std::right << std::setw(12) << std::fixed << std::setprecision(1) << avg(all_corr[mname])
+                  << std::setw(12) << std::setprecision(2) << avg(all_err[mname])
+                  << std::setw(12) << avg(all_inlier[mname])
+                  << std::setw(12) << avg(all_time[mname]) << "\n";
     }
 
     std::cout << "\nSaved: " << csvPath << "\n";

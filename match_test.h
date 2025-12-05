@@ -19,8 +19,9 @@ public:
 
     struct Metrics {
         int correspondences;
-        double he_pct;      // %H.E: error
-        double ap_pct;      // AP: error
+        double avg_error;    // Average projection error
+        double inlier_pct;   // % inliers
+        double he_pct;       // %H.E: error
         double runtime_ms;
     };
 
