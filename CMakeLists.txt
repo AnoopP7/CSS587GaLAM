@@ -17,3 +17,16 @@ target_link_libraries(${PROJECT_NAME}
         opencv_features2d
         opencv_calib3d
 )
+
+# test
+add_executable(test_galam galam.cpp match_test.cpp test_main.cpp)
+target_include_directories(test_galam PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(test_galam
+    PRIVATE
+    opencv_core
+    opencv_highgui
+    opencv_imgcodecs
+    opencv_imgproc
+    opencv_features2d
+    opencv_calib3d
+)
