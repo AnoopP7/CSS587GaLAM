@@ -573,15 +573,21 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
     std::vector<cv::Point2f> &normalizedKeypoints2) const
 {
     // Check that we have at least 2 points; if we don't, remove this seed point and neighborhood
-    for (size_t i = 0; i < neighborhoods.size(); i++)
+    std::vector<ScoredMatch> newSeeds;
+    std::vector<std::set<int>> newNeighborhoods;
+    
+    size_t limit = std::min(neighborhoods.size(), seedPoints.size());
+    for (size_t i = 0; i < limit; ++i)
     {
-        if (neighborhoods[i].size() < 2)
+        if (neighborhoods[i].size() >= 2)
         {
-            neighborhoods.erase(neighborhoods.begin() + i);
-            seedPoints.erase(seedPoints.begin() + i);
-            --i; // decrement index if we removed an item
+            newSeeds.push_back(seedPoints[i]);
+            newNeighborhoods.push_back(neighborhoods[i]);
         }
     }
+    
+    seedPoints = std::move(newSeeds);
+    neighborhoods = std::move(newNeighborhoods);
 
     // Create vector of affine transformations
     std::vector<cv::Mat> transforms;
@@ -677,8 +683,12 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
     }
 
     // Remove neighborhoods for which we could not fit an affine transformation
+    // sort indices in reverse order and then erase to ensure we remove the right indices and the removal does not affect the index
+    // seedpoints and neighbours should match for stage 2 so remove from seedPoints as well
+    std::sort(removeNeighborhood.rbegin(), removeNeighborhood.rend());
     for (size_t idx : removeNeighborhood) {
         neighborhoods.erase(neighborhoods.begin() + idx);
+        seedPoints.erase(seedPoints.begin() + idx);
     }
 
     return transforms;
