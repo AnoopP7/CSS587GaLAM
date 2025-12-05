@@ -29,6 +29,16 @@ cd build
 ./Galam ../samples/image1.jpg ../samples/image2.jpg
 ```
 
+### Running the tests
+
+```bash
+# After building
+cd build
+
+# Run with oxford data
+./test_galam ../data
+```
+
 **Output:**
 
 ## Authors
