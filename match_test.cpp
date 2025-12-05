@@ -160,13 +160,30 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
                         << m.correspondences << "," << m.he_pct << "," << m.ap_pct << "," << m.runtime_ms << "\n";
                     std::cout << scene << "\t1-" << i << "\t" << mname << "\t"
                               << m.correspondences << "\t" << m.he_pct << "\t" << m.ap_pct << "\t" << m.runtime_ms << "\n";
-
+                              
                     if (isViewpoint) { vp_he[mname].push_back(m.he_pct); vp_ap[mname].push_back(m.ap_pct); }
                     if (isLight) { lt_he[mname].push_back(m.he_pct); lt_ap[mname].push_back(m.ap_pct); }
                 }
             }
         }
     }
-    
+
+    // Print Table summary
+    auto avg = [](const std::vector<double>& v) { 
+        return v.empty() ? 0.0 : std::accumulate(v.begin(), v.end(), 0.0) / v.size(); 
+    };
+
+    std::cout << "\n===== SUMMARY =====\n";
+    std::cout << std::left << std::setw(10) << "Method" 
+              << std::right << std::setw(12) << "VP %H.E" << std::setw(10) << "VP AP"
+              << std::setw(12) << "Light %H.E" << std::setw(10) << "Light AP" << "\n";
+    std::cout << std::string(54, '-') << "\n";
+
+    for (const auto& mname : {"NN+RT", "RANSAC", "GaLAM"}) {
+        std::cout << std::left << std::setw(10) << mname
+                  << std::right << std::setw(12) << avg(vp_he[mname]) << std::setw(10) << avg(vp_ap[mname])
+                  << std::setw(12) << avg(lt_he[mname]) << std::setw(10) << avg(lt_ap[mname]) << "\n";
+    }
+
     std::cout << "\nSaved: " << csvPath << "\n";
 }
