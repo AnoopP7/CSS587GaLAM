@@ -532,6 +532,9 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
     // double threshold = params_.lambda2 / (params_.lambda1 * R2);
     double R1 = computeBaseRadius(imageSize1);
 
+    // Neighborhoods to remove
+    std::vector<size_t> removeNeighborhood;
+
     // Iterate through each seed point's neighborhood
     for (size_t neighborhood = 0; neighborhood < neighborhoods.size(); neighborhood++)
     {
@@ -568,23 +571,31 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         {
             cv::Mat transformation = cv::estimateAffinePartial2D(points1, points2, cv::noArray(), cv::RANSAC, 3, 1, 0.99, 10);
 
-            // Find the residual rk for each correspondence point pair in the neighborhood
-            int score = 0;
-            for (int match : neighborhoods[neighborhood])
-            {
-                double rk = measureAffineResidual(transformation, matches[match], normalizedKeypoints1, normalizedKeypoints2);
+            // Find the residual rk for each correspondence point pair in the neighborhood if we found a transformation
+            if (!transformation.empty()) {
+                int score = 0;
+                for (int match : neighborhoods[neighborhood])
+                {
+                    double rk = measureAffineResidual(transformation, matches[match], normalizedKeypoints1, normalizedKeypoints2);
 
-                // Compare rk against threshold and count the number of rk below threshold
-                if (rk <= threshold)
-                    ++score;
-            }
+                    // Compare rk against threshold and count the number of rk below threshold
+                    if (rk <= threshold)
+                        ++score;
+                }
 
-            // If this transformation has more rk below threshold, select it as the optimal transformation
-            if (score > bestScore)
-            {
-                optimalTransformation = transformation;
-                bestScore = score;
+                // If this transformation has more rk below threshold, select it as the optimal transformation
+                if (score > bestScore)
+                {
+                    optimalTransformation = transformation;
+                    bestScore = score;
+                }
             }
+        }
+
+        // If we didn't find any optimal transformation, we should get rid of this neighborhood
+        if (optimalTransformation.empty()) {
+            removeNeighborhood.push_back(neighborhood);
+            continue;
         }
 
         // Keep best affine transformation
@@ -607,6 +618,10 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         {
             neighborhoods[neighborhood].erase(idx);
         }
+    }
+
+    for (size_t idx : removeNeighborhood) {
+        neighborhoods.erase(neighborhoods.begin() + idx);
     }
 
     return transforms;
