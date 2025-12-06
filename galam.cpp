@@ -4,11 +4,37 @@
  * Implementation authors: Yu Dinh, Neha Kotwal, Anoop Prasad
  * Paper title: GaLAM: Two-Stage Outlier Detection Algorithm
  * Paper authors: X. Lu, Z. Yan, Z. Fan
+ *
+ * This file contains the implementation of the GaLAM class methods.
+ *
+ * Purpose:
+ * - Implement the GaLAM outlier detection algorithm
+ * - Provide functions for seed point selection, local neighborhood selection,
+ *  affine verification, and global geometry verification
+ * - Implement a robust error handling mechanism
+ * - Ensure compatibility with OpenCV library
+ *
+ * High-level overview of GaLAM algorithm:
+ * - Stage 1: Local Affine Matching
+ *    - Select seed points using bidirectional nearest neighbor matching,
+ *      ratio test, and non-maximum suppression
+ *    - For each seed point, find local neighborhoods based on spatial,
+ *      appearance, and geometric consistency
+ *    - Perform affine verification within each neighborhood to filter out outliers
+ * - Stage 2: Global Geometric Consistency
+ *    - Use RANSAC to fit a global geometric model (fundamental matrix)
+ *    - Evaluate the model over all seed points and their neighborhoods
+ *    - Select strong models and corresponding inlier matches
+ *    - Return the final set of inlier matches after both stages
+ *
+ * Note:
+ * - This implementation uses OpenCV for image processing and feature matching
+ * - The code is structured to allow easy modification of parameters and integration
+ * with other systems
+ * - Error handling is implemented to manage potential issues during processing
+ *
+ * TODO: Implement OpenCV outlier detection interface if possible
  */
-
- // TODO: Implement OpenCV outlier detection interface if possible
- // TODO: General code cleanup
- // TODO: Make sure error handling is robust and correct (e.g. if we return an empty vector, don't do anything with it)
 
 #include "galam.h"
 
@@ -151,6 +177,9 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
 /*
  * Parameters:
  * matches: vector of ScoredMatch to store all matches found
+ *
+ * Return:
+ * None (outputs are via reference parameter)
  */
 void GaLAM::assignConfidenceScore(
     std::vector<ScoredMatch> &matches) const
@@ -160,13 +189,13 @@ void GaLAM::assignConfidenceScore(
     {
         double distance = std::max(static_cast<double>(scored.match.distance), 1e-6);
         double secondDistance = std::max(static_cast<double>(scored.secondMatch.distance), 1e-6);
-        //scored.confidence = 1.0 / distance;
+        // scored.confidence = 1.0 / distance;
         scored.confidence = 1.0 / (distance / secondDistance);
     }
 }
 
 // selectPoints
-// Selects high-scoring points as seed points using non-maximum suppression 
+// Selects high-scoring points as seed points using non-maximum suppression
 // Preconditions: vector of matches with initialized scores and keypoints and size for first image are provided
 // Postconditions: Returns the vector of seed points found
 /*
@@ -187,7 +216,6 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
     if (matches.empty())
         return {};
 
-    // TODO: Do we need this comment?
     // ----------------------------------------------------------------------
     // Compute GaLAM global NMS radius R
     //
@@ -202,18 +230,11 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
     //     - The NMS region area πR² = total_image_area / r_a
     //     - Ensures seed points are evenly distributed spatially
     // ----------------------------------------------------------------------
-    
+
     // Calculate the radius for non-maximum suppression
     double imageArea = static_cast<double>(imageSize1.width) *
-        static_cast<double>(imageSize1.height);
+                       static_cast<double>(imageSize1.height);
     double globalSeedRadius_R = std::sqrt(imageArea / (CV_PI * params_.ratio));
-    /*double globalSeedRadius_R;
-    {
-        double imageArea = static_cast<double>(imageSize1.width) *
-                           static_cast<double>(imageSize1.height);
-        globalSeedRadius_R = std::sqrt(imageArea / (CV_PI * params_.ratio));
-    }*/
-    // TODO: Can we use the computeBaseRadius() function? Why was this done the way above?
 
     // Sort indices by confidence, descending
     std::vector<int> sortedIndices(matches.size());
@@ -224,14 +245,15 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
                   return matches[a].confidence > matches[b].confidence;
               });
 
-    std::vector<bool> isSuppressed(matches.size(), false);
-    std::vector<ScoredMatch> seedPoints;
-    seedPoints.reserve(matches.size() / 4);
-
     // ----------------------------------------------------------------------
     // Non-maximum suppression:
     // Keep the highest-confidence match, suppress all within radius R.
     // ----------------------------------------------------------------------
+    std::vector<bool> isSuppressed(matches.size(), false);
+    std::vector<ScoredMatch> seedPoints;
+    seedPoints.reserve(matches.size() / 4);
+
+    // Iterate through matches in order of confidence
     for (int idx : sortedIndices)
     {
         if (isSuppressed[idx])
@@ -249,6 +271,7 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
             const auto &otherMatch = matches[j];
             const cv::Point2f &otherPoint = keypoints1[otherMatch.match.queryIdx].pt;
 
+            // Compute distance
             double dx = seedPoint.x - otherPoint.x;
             double dy = seedPoint.y - otherPoint.y;
             if (std::sqrt(dx * dx + dy * dy) <= globalSeedRadius_R)
@@ -256,7 +279,7 @@ std::vector<GaLAM::ScoredMatch> GaLAM::selectPoints(
                 isSuppressed[j] = true;
             }
         }
-        
+
         // Keep track of the seed point we selected
         seedPoints.push_back(seedMatch);
     }
@@ -353,7 +376,7 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
     double tAlpha = params_.tAlpha;   // max allowed rotation difference (deg)
     double tSigma = params_.tSigma;   // max allowed log-scale difference
 
-    // Iterate through seed points 
+    // Iterate through seed points
     for (size_t s = 0; s < seedPoints.size(); ++s)
     {
         // Get keypoint data for the seed point
@@ -390,8 +413,9 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
                 continue;
             }
 
+            // ----------------------------------------------------------------------
             // 1) Distance constraint (Eq. 1)
-
+            // ----------------------------------------------------------------------
             // Image 1
             double dx1 = kp1.pt.x - kp1Seed.pt.x;
             double dy1 = kp1.pt.y - kp1Seed.pt.y;
@@ -406,7 +430,9 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             if (d2 > lambda1 * R2_seed)
                 continue;
 
+            // ----------------------------------------------------------------------
             // 2) Rotation + scale in log-domain (Eq. 2)
+            // ----------------------------------------------------------------------
 
             // rotation difference
             double alphaCand = normalizeAngle(kp2.angle - kp1.angle);
@@ -423,14 +449,16 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             if (std::fabs(std::log(ratio)) > tSigma)
                 continue;
 
+            // ----------------------------------------------------------------------
             // (Eq. 3 is omitted here; Eq. 1 + Eq. 2 already enforce locality and Eq. 3 is used to obtain R2)
+            // ----------------------------------------------------------------------
 
             // passes all constraints → add to neighborhood
             neigh.insert(static_cast<int>(i));
         }
 
-        //std::cout << "GaLAM: Neighborhood " << s
-        //          << " size = " << neigh.size() << std::endl;
+        // std::cout << "GaLAM: Neighborhood " << s
+        //           << " size = " << neigh.size() << std::endl;
     }
 
     return neighborhoods;
@@ -500,9 +528,10 @@ void GaLAM::preprocessSets(
     std::vector<cv::Point2f> &normalizedKeypoints1,
     std::vector<cv::Point2f> &normalizedKeypoints2) const
 {
+    // Base radius R1 from image 1 (eq. for R1 in the paper)
     double R1 = computeBaseRadius(imageSize1);
-    // double R2 = computeBaseRadius(imageSize2);
 
+    // Iterate through each seed point
     for (size_t s = 0; s < neighborhoods.size(); ++s)
     {
         const ScoredMatch &seedPoint = seedPoints[s];
@@ -513,7 +542,7 @@ void GaLAM::preprocessSets(
         const cv::KeyPoint &seedPoint1 = keypoints1[seed_q];
         const cv::KeyPoint &seedPoint2 = keypoints2[seed_t];
 
-        // NEW: Compute per-seed R2 based on seed's scale ratio
+        // Compute per-seed R2 based on seed's scale ratio
         double sigma1Seed = std::max(static_cast<double>(seedPoint1.size), 1e-6);
         double sigma2Seed = std::max(static_cast<double>(seedPoint2.size), 1e-6);
         double sigmaSeed = sigma2Seed / sigma1Seed;
@@ -531,6 +560,7 @@ void GaLAM::preprocessSets(
             const cv::KeyPoint &keypoint1 = keypoints1[q];
             const cv::KeyPoint &keypoint2 = keypoints2[t];
 
+            // Normalize coordinates based on seed points
             normalizedKeypoints1[q].x =
                 (keypoint1.pt.x - seedPoint1.pt.x) / (params_.lambda1 * R1);
             normalizedKeypoints1[q].y =
@@ -575,7 +605,8 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
     // Check that we have at least 2 points; if we don't, remove this seed point and neighborhood
     std::vector<ScoredMatch> newSeeds;
     std::vector<std::set<int>> newNeighborhoods;
-    
+
+    // Iterate through existing neighborhoods and only keep those with at least 2 points
     size_t limit = std::min(neighborhoods.size(), seedPoints.size());
     for (size_t i = 0; i < limit; ++i)
     {
@@ -585,7 +616,8 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
             newNeighborhoods.push_back(neighborhoods[i]);
         }
     }
-    
+
+    // Update seedPoints and neighborhoods to only include those with at least 2 points
     seedPoints = std::move(newSeeds);
     neighborhoods = std::move(newNeighborhoods);
 
@@ -605,6 +637,7 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         const cv::KeyPoint &kp1Seed = keypoints1[seedPoint.match.queryIdx];
         const cv::KeyPoint &kp2Seed = keypoints2[seedPoint.match.trainIdx];
 
+        // Compute per-seed R2 based on seed's scale ratio
         double sigma1Seed = std::max(static_cast<double>(kp1Seed.size), 1e-6);
         double sigma2Seed = std::max(static_cast<double>(kp2Seed.size), 1e-6);
         double sigmaSeed = sigma2Seed / sigma1Seed;
@@ -616,6 +649,7 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         std::vector<cv::Point2f> points1;
         std::vector<cv::Point2f> points2;
 
+        // Populate points1 and points2 from the neighborhood
         for (int match : neighborhoods[neighborhood])
         {
             points1.push_back(normalizedKeypoints1[matches[match].match.queryIdx]);
@@ -623,16 +657,18 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         }
 
         // Use RANSAC to fit the affine transformation matrix
-        // TODO: Verify that this approach is consistent with the paper
+        // Note: Paper run PROSAC with 128 interations
+        // Here, we use RANSAC with num_iterations from params
+        // Calls estimateAffinePartial2D() repeatedly, which internally does its own RANSAC on all points
         cv::Mat optimalTransformation;
         int bestScore = -1;
-
         for (int j = 0; j < params_.num_iterations; j++)
         {
             cv::Mat transformation = cv::estimateAffinePartial2D(points1, points2, cv::noArray(), cv::RANSAC, 3, 1, 0.99, 10);
 
             // Find the residual rk for each correspondence point pair in the neighborhood if we found a transformation
-            if (!transformation.empty()) {
+            if (!transformation.empty())
+            {
                 int score = 0;
                 for (int match : neighborhoods[neighborhood])
                 {
@@ -653,7 +689,8 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         }
 
         // If we didn't find any optimal transformation, we should get rid of this neighborhood
-        if (optimalTransformation.empty()) {
+        if (optimalTransformation.empty())
+        {
             removeNeighborhood.push_back(neighborhood);
             continue;
         }
@@ -686,7 +723,8 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
     // sort indices in reverse order and then erase to ensure we remove the right indices and the removal does not affect the index
     // seedpoints and neighbours should match for stage 2 so remove from seedPoints as well
     std::sort(removeNeighborhood.rbegin(), removeNeighborhood.rend());
-    for (size_t idx : removeNeighborhood) {
+    for (size_t idx : removeNeighborhood)
+    {
         neighborhoods.erase(neighborhoods.begin() + idx);
         seedPoints.erase(seedPoints.begin() + idx);
     }
@@ -695,7 +733,7 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
 }
 
 // measureAffineResidual
-// Calculates the residual for an affine transformation and correspondence pair 
+// Calculates the residual for an affine transformation and correspondence pair
 // Preconditions: Valid parameters are provided
 // Postconditions: Returns the residual as a double
 /*
@@ -721,6 +759,7 @@ double GaLAM::measureAffineResidual(
     matPoint1(1, 0) = point1.y;
     matPoint1(2, 0) = 1.0;
 
+    // Convert point2 to Mat
     cv::Mat_<double> matPoint2(2, 1);
     matPoint2(0, 0) = point2.x;
     matPoint2(1, 0) = point2.y;
@@ -746,6 +785,17 @@ double GaLAM::measureAffineResidual(
 // Return inlier matches
 // Precondition: matches and seedPoints are non-empty
 // Postcondition: returns inlier matches after global geometry verification
+/*
+ * Parameters:
+ * matches: vector of ScoredMatch to store all matches found
+ * seedPoints: vector of ScoredMatch of the seed points
+ * keypoints1: vector of cv::KeyPoint containing the keypoints from the first image
+ * keypoints2: vector of cv::KeyPoint containing the keypoints from the second image
+ * neighborhoods: std::vector<std::set<int>> of neighborhoods corresponding to seedPoints
+ *
+ * Return:
+ * std::vector<cv::DMatch> of inlier matches after global geometry verification
+ */
 std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     const std::vector<ScoredMatch> &matches,
     const std::vector<ScoredMatch> &seedPoints,
@@ -1013,6 +1063,25 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
     return finalMatches;
 }
 
+// localAffineVerification
+//  Combines seed point selection, neighborhood selection, and affine verification
+//  Preconditions: Valid parameters are provided
+//  Postconditions: seedPoints, neighborhoods, and matches are populated after local affine verification
+/*
+ * Parameters:
+ * keypoints1: vector of cv::KeyPoint containing the keypoints from the first image
+ * keypoints2: vector of cv::KeyPoint containing the keypoints from the second image
+ * descriptors1: cv::Mat containing the descriptors from the first image
+ * descriptors2: cv::Mat containing the descriptors from the second image
+ * imageSize1: cv::Size representing the size of the first image
+ * imageSize2: cv::Size representing the size of the second image
+ * seedPoints: vector of ScoredMatch to store the selected seed points
+ * neighborhoods: std::vector<std::set<int>> to store the neighborhoods corresponding to seedPoints
+ * matches: vector of ScoredMatch to store all matches found after affine verification
+ *
+ * Return:
+ * None (outputs are via reference parameters)
+ */
 void GaLAM::localAffineVerification(
     std::vector<cv::KeyPoint> &keypoints1,
     std::vector<cv::KeyPoint> &keypoints2,
@@ -1034,6 +1103,22 @@ void GaLAM::localAffineVerification(
     affineVerification(matches, seedPoints, keypoints1, keypoints2, neighborhoods, imageSize1, imageSize2);
 }
 
+// detectOutliers
+// Main function to detect outliers using GaLAM algorithm
+// Preconditions: Valid parameters are provided
+// Postconditions: returns StageResults containing seedMatches, stage1Matches, and finalMatches
+/*
+ * Parameters:
+ * keypoints1: vector of cv::KeyPoint containing the keypoints from the first image
+ * keypoints2: vector of cv::KeyPoint containing the keypoints from the second image
+ * descriptors1: cv::Mat containing the descriptors from the first image
+ * descriptors2: cv::Mat containing the descriptors from the second image
+ * imageSize1: cv::Size representing the size of the first image
+ * imageSize2: cv::Size representing the size of the second image
+ *
+ * Return:
+ * GaLAM::StageResults containing seedMatches, stage1Matches, and finalMatches
+ */
 GaLAM::StageResults GaLAM::detectOutliers(
     std::vector<cv::KeyPoint> &keypoints1,
     std::vector<cv::KeyPoint> &keypoints2,
@@ -1043,6 +1128,7 @@ GaLAM::StageResults GaLAM::detectOutliers(
     const cv::Size &imageSize1,
     const cv::Size &imageSize2) const
 {
+    // Initialize results
     StageResults results;
     std::cout << "GaLAM: Processing " << candidateMatches.size()
               << " candidate matches..." << std::endl;
@@ -1052,6 +1138,7 @@ GaLAM::StageResults GaLAM::detectOutliers(
     std::vector<std::set<int>> neighborhoods;
     std::vector<ScoredMatch> matches;
 
+    // Perform local affine verification
     localAffineVerification(keypoints1, keypoints2, descriptors1, descriptors2,
                             imageSize1, imageSize2, seedPoints, neighborhoods, matches);
 
@@ -1068,6 +1155,7 @@ GaLAM::StageResults GaLAM::detectOutliers(
     std::set<int> inlierIndices;
     for (size_t s = 0; s < neighborhoods.size(); ++s)
     {
+        // Add all indices from this neighborhood
         for (int idx : neighborhoods[s])
         {
             inlierIndices.insert(idx);
@@ -1086,6 +1174,7 @@ GaLAM::StageResults GaLAM::detectOutliers(
     std::cout << "GaLAM: Returning " << results.stage1Matches.size()
               << " matches after Stage 1 (Local Affine Matching)" << std::endl;
 
+    // Initialize final matches with Stage 1 results
     results.finalMatches = results.stage1Matches;
 
     // Stage 2: Global geometric consistency

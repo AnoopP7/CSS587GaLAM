@@ -1,0 +1,23 @@
+#include <opencv2/opencv.hpp>
+#include <iostream>
+
+int main()
+{
+    std::string path = "data/graf/img1.ppm";
+
+    // Load PPM image
+    cv::Mat img = cv::imread(path, cv::IMREAD_COLOR);
+
+    if (img.empty()) {
+        std::cerr << "Error: cannot load PPM image: " << path << std::endl;
+        return -1;
+    }
+
+    std::cout << "Loaded PPM image: " << path << "\n";
+    std::cout << "Size: " << img.cols << " x " << img.rows << "\n";
+
+    // save as PNG to verify it looks correct
+    cv::imwrite("converted.png", img);
+
+    return 0;
+}

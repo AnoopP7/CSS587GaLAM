@@ -1,12 +1,12 @@
 // main.cpp
-//#include <opencv2/opencv.hpp>
-//#include <opencv2/features2d.hpp>
-//#include <iostream>
-//#include <iomanip>
-//#include <vector>
-//#include "galam.h"
+// #include <opencv2/opencv.hpp>
+// #include <opencv2/features2d.hpp>
+// #include <iostream>
+// #include <iomanip>
+// #include <vector>
+// #include "galam.h"
 //
-//int main(int argc, char **argv)
+// int main(int argc, char **argv)
 //{
 //    std::cout << "========================================" << std::endl;
 //    std::cout << "GaLAM Implementation" << std::endl;
