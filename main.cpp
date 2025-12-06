@@ -26,6 +26,6 @@ int main(int argc, char **argv)
         {MatchTest::Detector::SIFT},
         {MatchTest::Method::NN_RT, MatchTest::Method::RANSAC, MatchTest::Method::GALAM});
 
-    tester.runTests(argv[1], argc >= 3 ? argv[2] : "results.csv");
+    tester.runTests(argv[1], argc >= 3 ? argv[2] : "./output/results.csv");
     return 0;
 }

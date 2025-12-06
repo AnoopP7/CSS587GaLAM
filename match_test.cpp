@@ -3,6 +3,9 @@
  */
 
 #include "match_test.h"
+
+//#include<opencv2/xfeatures2d.hpp>;
+
 #include <fstream>
 #include <filesystem>
 #include <chrono>
@@ -53,13 +56,21 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
             }
             break;
 
-        case Method::GALAM: {
+        case Method::GMS:
+
+            break;
+
+        case Method::LOGOS:
+
+            break;
+
+        case Method::GALAM: 
             GaLAM::InputParameters params;
             GaLAM galam(params);
             std::vector<cv::KeyPoint> k1 = kp1, k2 = kp2;
             result = galam.detectOutliers(k1, k2, d1, d2, matches, sz1, sz2).finalMatches;
             break;
-        }
+        
     }
 
     auto end = std::chrono::high_resolution_clock::now();
