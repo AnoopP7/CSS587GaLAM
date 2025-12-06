@@ -160,7 +160,7 @@ void GaLAM::assignConfidenceScore(
     {
         double distance = std::max(static_cast<double>(scored.match.distance), 1e-6);
         double secondDistance = std::max(static_cast<double>(scored.secondMatch.distance), 1e-6);
-        // scored.confidence = 1.0 / distance;
+        //scored.confidence = 1.0 / distance;
         scored.confidence = 1.0 / (distance / secondDistance);
     }
 }
@@ -429,8 +429,8 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             neigh.insert(static_cast<int>(i));
         }
 
-        std::cout << "GaLAM: Neighborhood " << s
-                  << " size = " << neigh.size() << std::endl;
+        //std::cout << "GaLAM: Neighborhood " << s
+        //          << " size = " << neigh.size() << std::endl;
     }
 
     return neighborhoods;

@@ -33,20 +33,19 @@ private:
     std::vector<Method> methods_;
 
     void getFeatures(const cv::Mat& img, Detector det,
-                     std::vector<cv::KeyPoint>& kp, cv::Mat& desc);
+        std::vector<cv::KeyPoint>& kp, cv::Mat& desc);
 
     std::vector<cv::DMatch> filterOutliers(Method method,
-                                           const std::vector<cv::KeyPoint>& kp1,
-                                           const std::vector<cv::KeyPoint>& kp2,
-                                           const cv::Mat& d1, const cv::Mat& d2,
-                                           const std::vector<cv::DMatch>& matches,
-                                           const cv::Size& sz1, const cv::Size& sz2,
-                                           double& runtime_ms);
+        const std::vector<cv::KeyPoint>& kp1, const std::vector<cv::KeyPoint>& kp2,
+        const cv::Mat& d1, const cv::Mat& d2,
+        const std::vector<cv::DMatch>& matches,
+        const std::vector<cv::DMatch>& nnMatches,
+        const cv::Size& sz1, const cv::Size& sz2, double& runtime_ms);
 
     Metrics evaluateMatches(const std::vector<cv::KeyPoint>& kp1,
-                            const std::vector<cv::KeyPoint>& kp2,
-                            const std::vector<cv::DMatch>& matches,
-                            const cv::Mat& gtH, double runtime_ms);
+        const std::vector<cv::KeyPoint>& kp2,
+        const std::vector<cv::DMatch>& matches,
+        const cv::Mat& gtH, double runtime_ms);
 };
 
 #endif
