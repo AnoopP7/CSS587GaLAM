@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 MatchTest::MatchTest(const std::vector<Detector>& detectors, const std::vector<Method>& methods)
     : detectors_(detectors), methods_(methods) {}
 
-void MatchTest::getFeatures(const cv::Mat& img, Detector det,
+    void MatchTest::getFeatures(const cv::Mat& img, Detector det,
                             std::vector<cv::KeyPoint>& kp, cv::Mat& desc) {
     cv::Ptr<cv::Feature2D> f;
     switch (det) {
@@ -119,6 +119,13 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
         return "";
     };
 
+    // Load image with .ppm or .pgm extension
+    auto loadImage = [](const std::string& base) {
+        cv::Mat img = cv::imread(base + ".ppm", cv::IMREAD_GRAYSCALE);
+        if (img.empty()) img = cv::imread(base + ".pgm", cv::IMREAD_GRAYSCALE);
+        return img;
+    };
+
     // Accumulators for summary
     std::map<std::string, std::vector<double>> all_corr, all_err, all_inlier, all_time;
     // Accumulators for Table 1 (viewpoint and light)
@@ -132,14 +139,14 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
         std::string sp = dataPath + "/" + scene;
         if (!fs::exists(sp)) continue;
 
-        cv::Mat img1 = cv::imread(sp + "/img1.ppm", cv::IMREAD_GRAYSCALE);
+        cv::Mat img1 = loadImage(sp + "/img1");
         if (img1.empty()) continue;
 
         bool isViewpoint = (scene == "graf" || scene == "wall");
         bool isLight = (scene == "leuven");
 
         for (int i = 2; i <= 6; ++i) {
-            cv::Mat img2 = cv::imread(sp + "/img" + std::to_string(i) + ".ppm", cv::IMREAD_GRAYSCALE);
+            cv::Mat img2 = loadImage(sp + "/img" + std::to_string(i));
             cv::Mat gtH = loadH(sp + "/H1to" + std::to_string(i) + "p");
             if (img2.empty() || gtH.empty()) continue;
 
