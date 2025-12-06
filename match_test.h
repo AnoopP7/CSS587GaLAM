@@ -15,7 +15,7 @@
 class MatchTest {
 public:
     enum class Detector { SIFT, ORB, AKAZE };
-    enum class Method { NN_RT, RANSAC, GALAM };
+    enum class Method { NN_RT, RANSAC, LOGOS, GMS, GALAM };
 
     struct Metrics {
         int correspondences;

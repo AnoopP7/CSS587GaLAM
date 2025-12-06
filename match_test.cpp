@@ -182,6 +182,19 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
                     if (i == 2) {
                         std::string filehead = "./output/" + scene + "_img" + std::to_string(i) + "_";
 
+                        switch (det) {
+                        case Detector::AKAZE:
+                            filehead += "AKAZE_";
+                            break;
+
+                        case Detector::ORB:
+                            filehead += "ORB_";
+                            break;
+
+                        case Detector::SIFT:
+                            filehead += "SIFT_";
+                        }
+
                         cv::Mat output;
                         cv::drawMatches(img1, kp1, img2, kp2, matches, output);
                         cv::imwrite(filehead + "initial.jpg", output);
