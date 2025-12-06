@@ -135,7 +135,7 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
         // If all conditions satisfied, add this match to return vector
         ScoredMatch scored;
         scored.match = bestMatch;
-        // scored.secondMatch = secondBestMatch;
+        scored.secondMatch = secondBestMatch;
         scored.confidence = 0.0;
         validMatches.push_back(scored);
     }
@@ -159,9 +159,9 @@ void GaLAM::assignConfidenceScore(
     for (auto &scored : matches)
     {
         double distance = std::max(static_cast<double>(scored.match.distance), 1e-6);
-        // double secondDistance = std::max(static_cast<double>(scored.secondMatch.distance), 1e-6);
-        scored.confidence = 1.0 / distance;
-        // scored.confidence = 1.0 / (distance / secondDistance);
+        double secondDistance = std::max(static_cast<double>(scored.secondMatch.distance), 1e-6);
+        // scored.confidence = 1.0 / distance;
+        scored.confidence = 1.0 / (distance / secondDistance);
     }
 }
 

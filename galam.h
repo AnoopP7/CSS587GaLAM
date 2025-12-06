@@ -36,7 +36,7 @@ public:
               epsilon(1.0),
               // lamba could be different values
               lambda1(4.0), lambda2(2.0), lambda3(0.8),
-              tAlpha(10.0),
+              tAlpha(20.0),
               tSigma(0.5),
               num_iterations(128),
               minSampleSize(8)
