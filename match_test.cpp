@@ -389,11 +389,11 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
               << std::right << std::setw(12) << "View %H.E" << std::setw(10) << "View AP"
               << std::setw(12) << "Light %H.E" << std::setw(10) << "Light AP"
               << std::setw(12) << "Blur %H.E" << std::setw(10) << "Blur AP" 
-              << std::setw(12) << "Zoom+Rot %H.E" << std::setw(10) << "Zoom+Rot AP" 
+              << std::setw(12) << "Z+R %H.E" << std::setw(10) << "Z+R AP" 
               << std::setw(12) << "Comp %H.E" << std::setw(10) << "Comp AP" << "\n";
-    std::cout << std::string(54, '-') << "\n";
+    std::cout << std::string(160, '-') << "\n";
 
-    for (const auto& mname : {"NN+RT", "RANSAC", "GaLAM"}) {
+    for (const auto& mname : {"NN+RT", "RANSAC", "GMS", "GaLAM"}) {
         std::cout << std::left << std::setw(10) << mname
                   << std::right << std::setw(12) << avg(vp_he[mname]) << std::setw(10) << avg(vp_ap[mname])
                   << std::setw(12) << avg(lt_he[mname]) << std::setw(10) << avg(lt_ap[mname]) 
@@ -411,7 +411,7 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
               << std::setw(12) << "Runtime(ms)" << "\n";
     std::cout << std::string(58, '-') << "\n";
 
-    for (const auto& mname : {"NN+RT", "RANSAC", "GaLAM"}) {
+    for (const auto& mname : {"NN+RT", "RANSAC", "GMS", "GaLAM"}) {
         std::cout << std::left << std::setw(10) << mname
                   << std::right << std::setw(12) << std::fixed << std::setprecision(1) << avg(all_corr[mname])
                   << std::setw(12) << std::setprecision(2) << avg(all_err[mname])
