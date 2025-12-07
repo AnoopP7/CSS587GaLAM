@@ -391,7 +391,7 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
               << std::setw(12) << "Blur %H.E" << std::setw(10) << "Blur AP" 
               << std::setw(12) << "Z+R %H.E" << std::setw(10) << "Z+R AP" 
               << std::setw(12) << "Comp %H.E" << std::setw(10) << "Comp AP" << "\n";
-    std::cout << std::string(160, '-') << "\n";
+    std::cout << std::string(120, '-') << "\n";
 
     for (const auto& mname : {"NN+RT", "RANSAC", "GMS", "GaLAM"}) {
         std::cout << std::left << std::setw(10) << mname
