@@ -13,7 +13,9 @@ Paper: [https://ieeexplore.ieee.org/document/10967479](https://ieeexplore.ieee.o
 
 ### Requirements
 
-- OpenCV
+- C++17 or higher
+- OpenCV 4.12.0
+- OpenCV extra modules
 
 ### Build
 
