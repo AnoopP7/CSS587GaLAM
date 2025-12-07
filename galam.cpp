@@ -59,7 +59,7 @@
  * GaLAM object
  */
 GaLAM::GaLAM(const InputParameters &params)
-    : params_(params) {}
+    : params_(params), radius1(1.0), radius2(1.0) {}
 
 // selectSeedPoints
 // Selects seed points to be used throughout the algorithm
