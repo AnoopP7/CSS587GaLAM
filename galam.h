@@ -411,31 +411,6 @@ private:
         const std::vector<cv::KeyPoint> &keypoints1,
         const std::vector<cv::KeyPoint> &keypoints2,
         const std::vector<std::set<int>> &neighborhoods) const;
-
-    // detectOutliers
-    // Main function to detect outliers using GaLAM algorithm
-    // Preconditions: Valid parameters are provided
-    // Postconditions: returns StageResults containing seedMatches, stage1Matches, and finalMatches
-    /*
-     * Parameters:
-     * keypoints1: vector of cv::KeyPoint containing the keypoints from the first image
-     * keypoints2: vector of cv::KeyPoint containing the keypoints from the second image
-     * descriptors1: cv::Mat containing the descriptors from the first image
-     * descriptors2: cv::Mat containing the descriptors from the second image
-     * imageSize1: cv::Size representing the size of the first image
-     * imageSize2: cv::Size representing the size of the second image
-     *
-     * Return:
-     * GaLAM::StageResults containing seedMatches, stage1Matches, and finalMatches
-     */
-    GaLAM::StageResults detectOutliers(
-        std::vector<cv::KeyPoint> &keypoints1,
-        std::vector<cv::KeyPoint> &keypoints2,
-        const cv::Mat &descriptors1,
-        const cv::Mat &descriptors2,
-        const std::vector<cv::DMatch> &candidateMatches,
-        const cv::Size &imageSize1,
-        const cv::Size &imageSize2) const;
 };
 
 #endif // GALAM_H
