@@ -16,7 +16,7 @@
 
 #include "match_test.h"
 
-//#include<opencv2/xfeatures2d.hpp>;
+#include<opencv2/xfeatures2d.hpp>;
 
 #include <fstream>
 #include <filesystem>
@@ -61,6 +61,7 @@ void MatchTest::getFeatures(const cv::Mat& img, Detector det,
 std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
     const std::vector<cv::KeyPoint>& kp1, const std::vector<cv::KeyPoint>& kp2,
     const cv::Mat& d1, const cv::Mat& d2,
+    const cv::Size& imageSize1, const cv::Size& imageSize2,
     const std::vector<cv::DMatch>& matches,
     const std::vector<cv::DMatch>& nnMatches,
     const cv::Size& sz1, const cv::Size& sz2, double& runtime_ms) {
@@ -93,7 +94,7 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
             break;
 
         case Method::GMS:
-
+            cv::xfeatures2d::matchGMS(imageSize1, imageSize2, kp1, kp2, matches, result);
             break;
 
         case Method::LOGOS:
@@ -166,7 +167,7 @@ MatchTest::Metrics MatchTest::evaluateMatches(
         if (error < 1.0) ++he_count;// Count as high-accuracy if error < 1 pixel
         if (error < 3.0) ++inlier_count;//Convert counts to percentages of total matches
     }
-    // Convert counts to percentages of total matche
+    // Convert counts to percentages of total matches
     met.avg_error = total_error / matches.size();
     met.he_pct = 100.0 * he_count / matches.size();
     met.inlier_pct = 100.0 * inlier_count / matches.size();
@@ -208,7 +209,23 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
 
     // Helper lambda to convert Method enum to a human-readable name
     auto methodName = [](Method method) {
-        switch(method) { case Method::NN_RT: return "NN+RT"; case Method::RANSAC: return "RANSAC"; case Method::GALAM: return "GaLAM"; }
+        switch (method)
+        {
+        case Method::NN_RT:
+            return "NN+RT";
+        
+        case Method::RANSAC:
+            return "RANSAC";
+        
+        case Method::GMS:
+            return "GMS";
+        
+        case Method::LOGOS:
+            return "LOGOS";
+        
+        case Method::GALAM:
+            return "GaLAM";
+        }
         return "";
     };
 
@@ -248,7 +265,7 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
         bool isBlur = (scene == "bikes" || scene == "trees");
         bool isZoomRot = (scene == "bark" || scene == "boat");
 
-        // HPatches convention: compare img1 with img2..img6
+        // Oxford dataset convention: compare img1 with img2..img6
         for (int i = 2; i <= 6; ++i) {
             cv::Mat img2 = loadImage(scenePath + "/img" + std::to_string(i));
             cv::Mat gtHomography = loadHomography(scenePath + "/H1to" + std::to_string(i) + "p");
@@ -286,7 +303,7 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
                 for (auto method : methods_) {
                     double rt;
                     // Apply method to filter outliers
-                    auto filtered = filterOutliers(method, kp1, kp2, d1, d2, matches, nnMatches, img1.size(), img2.size(), rt);
+                    auto filtered = filterOutliers(method, kp1, kp2, d1, d2, img1.size(), img2.size(), matches, nnMatches, img1.size(), img2.size(), rt);
                     // Evaluate filtered matches against ground-truth homography
                     Metrics met = evaluateMatches(kp1, kp2, filtered, gtHomography, rt);
 
@@ -313,22 +330,13 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
                         std::cout << "  Saved: " << filehead << "initial.jpg" << std::endl;
 
                         cv::drawMatches(img1, kp1, img2, kp2, filtered, output);
-                        switch (method) {
-                        case Method::NN_RT:
-                            cv::imwrite(filehead + "NNRT_filtered.jpg", output);
-                            std::cout << "  Saved: " << filehead << "NNRT_filtered.jpg" << std::endl;
-                            break;
-        
-                        case Method::RANSAC:
-                            cv::imwrite(filehead + "RANSAC_filtered.jpg", output);
-                            std::cout << "  Saved: " << filehead << "RANSAC_filtered.jpg" << std::endl;
-                            break;
 
-                        case Method::GALAM:
-                            cv::imwrite(filehead + "GALAM_filtered.jpg", output);
-                            std::cout << "  Saved: " << filehead << "GALAM_filtered.jpg" << std::endl;
-                        }
-                        
+                        // Add name of method 
+                        filehead += methodName(method);
+
+                        // Save image
+                        cv::imwrite(filehead + "_filtered.jpg", output);
+                        std::cout << "  Saved: " << filehead << "_filtered.jpg" << std::endl;                        
                     }
 
                     std::string mname = methodName(method);

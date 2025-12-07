@@ -38,6 +38,7 @@ private:
     std::vector<cv::DMatch> filterOutliers(Method method,
         const std::vector<cv::KeyPoint>& kp1, const std::vector<cv::KeyPoint>& kp2,
         const cv::Mat& d1, const cv::Mat& d2,
+        const cv::Size& imageSize1, const cv::Size& imageSize2,
         const std::vector<cv::DMatch>& matches,
         const std::vector<cv::DMatch>& nnMatches,
         const cv::Size& sz1, const cv::Size& sz2, double& runtime_ms);
