@@ -21,16 +21,6 @@ Paper: [https://ieeexplore.ieee.org/document/10967479](https://ieeexplore.ieee.o
 
 ## Usage
 
-### Running the program
-
-```bash
-# After building
-cd build
-
-# Run with sample input
-./Galam ../samples/image1.jpg ../samples/image2.jpg
-```
-
 ### Running the tests
 
 ```bash

@@ -16,7 +16,7 @@
 
 #include "match_test.h"
 
-#include<opencv2/xfeatures2d.hpp>;
+#include<opencv2/xfeatures2d.hpp>
 
 #include <fstream>
 #include <filesystem>

@@ -4,22 +4,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(OpenCV REQUIRED)
 set(SOURCES galam.cpp main.cpp)
-add_executable(${PROJECT_NAME} ${SOURCES})
-
-target_include_directories(${PROJECT_NAME} PRIVATE ${OpenCV_INCLUDE_DIRS})
-
-target_link_libraries(${PROJECT_NAME}
-    PRIVATE
-        opencv_core
-        opencv_highgui
-        opencv_imgcodecs
-        opencv_imgproc
-        opencv_features2d
-        opencv_calib3d
-)
 
 # test
-add_executable(test_galam galam.cpp match_test.cpp test_main.cpp)
+add_executable(test_galam galam.cpp match_test.cpp main.cpp)
 target_include_directories(test_galam PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(test_galam
     PRIVATE
@@ -29,4 +16,5 @@ target_link_libraries(test_galam
     opencv_imgproc
     opencv_features2d
     opencv_calib3d
+    opencv_xfeatures2d
 )
