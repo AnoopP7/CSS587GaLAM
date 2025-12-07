@@ -62,25 +62,23 @@ public:
         double ratio;                     // ratio for NMS area
         double rt_threshold;              // ratio test threshold
         double epsilon;                   // epipolar threshold
-        double lambda1, lambda2, lambda3; // lambdas from paper
+        double lambda1, lambda2, lambda3; // lambda params from paper
         double tAlpha;                    // max rotation difference
         double tSigma;                    // max scale difference
-        int num_iterations;               // iterations
+        int num_iterations;               // iterations for RANSAC
         int minSampleSize;                // 8-points algorithm (8 pairs)
-        InputParameters()
-            : ratio(100.0),
-              rt_threshold(0.8),
-              epsilon(1.0),
-              // lambdas could be different values
-              lambda1(4.0), lambda2(2.0), lambda3(0.8),
-              // thresholds
-              tAlpha(20.0),
-              tSigma(0.5),
-              // RANSAC thresholds
-              num_iterations(128),
-              minSampleSize(8)
-        {
-        }
+        InputParameters(
+            double rat = 100,
+            double rt = 0.8,
+            double eps = 1.0,
+            double l1 = 4.0,
+            double l2 = 2.0,
+            double l3 = 0.8,
+            double ta = 20.0,
+            double ts = 0.5,
+            int iters = 128,
+            int sample = 8
+        ) : ratio(rat), rt_threshold(rt), epsilon(eps), lambda1(l1), lambda2(l2), lambda3(l3), tAlpha(ta), tSigma(ts), num_iterations(iters), minSampleSize(sample) {}
     };
 
     // Constructor
