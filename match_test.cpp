@@ -94,7 +94,7 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
             break;
 
         case Method::GMS:
-            cv::xfeatures2d::matchGMS(imageSize1, imageSize2, kp1, kp2, matches, result);
+            cv::xfeatures2d::matchGMS(imageSize1, imageSize2, kp1, kp2, matches, result, true, true, 3.0);
             break;
 
         case Method::LOGOS:
