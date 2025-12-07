@@ -1,5 +1,16 @@
 /*
  * match_test.h
+ * CSS587 Design Project - GaLAM Testing Framework
+ * Implementation authors: Yu Dinh, Neha Kotwal, Anoop Prasad
+ *
+ * This file defines the MatchTest class for benchmarking feature matching
+ * and outlier detection algorithms on the Oxford Affine Dataset.
+ *
+ * Purpose:
+ * - Define interface for testing multiple detector/method combinations
+ * - Provide metrics matching the GaLAM paper's Table 1 format
+ * - Support CSV output for result analysis
+ *
  */
 
 #ifndef MATCH_TEST_H
@@ -17,6 +28,8 @@ public:
     enum class Detector { SIFT, ORB, AKAZE };
     enum class Method { NN_RT, RANSAC, LOGOS, GMS, GALAM };
 
+    // Metrics struct
+    // Stores evaluation results for a single image pair and method
     struct Metrics {
         int correspondences;
         double avg_error;    // Average projection error
@@ -24,7 +37,7 @@ public:
         double he_pct;       // %H.E: error
         double runtime_ms;
     };
-
+    
     MatchTest(const std::vector<Detector>& detectors, const std::vector<Method>& methods);
     void runTests(const std::string& dataPath, const std::string& csvPath);
 
