@@ -67,6 +67,7 @@ public:
         double tSigma;                    // max scale difference
         int num_iterations;               // iterations for RANSAC
         int minSampleSize;                // 8-points algorithm (8 pairs)
+        double finalRTThreshold;
         InputParameters(
             double rat = 100,
             double rt = 0.8,
@@ -76,9 +77,9 @@ public:
             double l3 = 0.8,
             double ta = 20.0,
             double ts = 0.5,
+            double finalRT = 0.9,
             int iters = 128,
-            int sample = 8
-        ) : ratio(rat), rt_threshold(rt), epsilon(eps), lambda1(l1), lambda2(l2), lambda3(l3), tAlpha(ta), tSigma(ts), num_iterations(iters), minSampleSize(sample) {}
+            int sample = 8) : ratio(rat), rt_threshold(rt), epsilon(eps), lambda1(l1), lambda2(l2), lambda3(l3), tAlpha(ta), tSigma(ts), finalRTThreshold(finalRT), num_iterations(iters), minSampleSize(sample) {}
     };
 
     // Constructor

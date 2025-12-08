@@ -1190,5 +1190,79 @@ GaLAM::StageResults GaLAM::detectOutliers(
 
     std::cout << "GaLAM: Final matches after Stage 2: " << results.finalMatches.size() << std::endl;
 
+    // Final RT-based thresholding
+    // If the number of matches exceeds 200, filter matches using
+    // a ratio test (RT < 0.9).
+    if (results.finalMatches.size() > 200)
+    {
+        const double finalRTThreshold = params_.finalRTThreshold; // 0.9
+
+        std::vector<cv::DMatch> filtered;
+        filtered.reserve(results.finalMatches.size());
+
+        // debuging logs
+        int totalChecked = 0;
+        int totalFound = 0;
+        int totalBad = 0;
+
+        // For each final match, recover its ratio test value from the original matches
+        for (const auto &dm : results.finalMatches)
+        {
+            ++totalChecked;
+
+            bool found = false;
+            double ratio = 0.0;
+
+            // Recover the ratio test using original matches vector
+            for (const auto &sm : matches)
+            {
+                if (sm.match.queryIdx == dm.queryIdx &&
+                    sm.match.trainIdx == dm.trainIdx)
+                {
+                    double dist1 = std::max((double)sm.match.distance, 1e-6);
+                    double dist2 = std::max((double)sm.secondMatch.distance, 1e-6);
+                    ratio = dist1 / dist2;
+
+                    found = true;
+                    ++totalFound;
+
+                    if (ratio >= finalRTThreshold)
+                    {
+                        ++totalBad; // This one would be removed
+                    }
+
+                    break;
+                }
+            }
+
+            // If no ScoredMatch was found, keep the match to preserve original logic
+            if (!found)
+            {
+                filtered.push_back(dm);
+                continue;
+            }
+
+            // Keep only matches that pass RT threshold
+            if (ratio < finalRTThreshold)
+            {
+                filtered.push_back(dm);
+            }
+        }
+
+        // Debug output for verification
+        std::cout << "RT filter stats: checked=" << totalChecked
+                  << ", found=" << totalFound
+                  << ", bad=" << totalBad << std::endl;
+
+        // Report filtering results
+        std::cout << "GaLAM: Final RT filter (" << finalRTThreshold
+                  << ") reduced matches from "
+                  << results.finalMatches.size() << " to "
+                  << filtered.size() << std::endl;
+
+        // Update final matches
+        results.finalMatches.swap(filtered);
+    }
+
     return results;
 }
