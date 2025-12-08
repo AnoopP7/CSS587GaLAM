@@ -25,6 +25,7 @@
  *    - Use RANSAC to fit a global geometric model (fundamental matrix)
  *    - Evaluate the model over all seed points and their neighborhoods
  *    - Select strong models and corresponding inlier matches
+ *    - Final RT thresholding to filter matches 0.9 to ensure no bad matches passed through
  *    - Return the final set of inlier matches after both stages
  *
  * Note:
@@ -32,6 +33,11 @@
  * - The code is structured to allow easy modification of parameters and integration
  * with other systems
  * - Error handling is implemented to manage potential issues during processing
+<<<<<<< Updated upstream
+=======
+ *
+ * Future Work: Implement OpenCV outlier detection interface
+>>>>>>> Stashed changes
  */
 
 #include "galam.h"
@@ -118,7 +124,11 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
 {
     std::vector<std::vector<cv::DMatch>> knn12, knn21;
 
+<<<<<<< Updated upstream
     // Could be made faster by using external match results
+=======
+    // If slow, FLANN instead
+>>>>>>> Stashed changes
     cv::BFMatcher matcher(cv::NORM_L2);
     matcher.knnMatch(descriptors1, descriptors2, knn12, 2);
     matcher.knnMatch(descriptors2, descriptors1, knn21, 2);

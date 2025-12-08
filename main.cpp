@@ -15,13 +15,17 @@
 #include "galam.h"
 #include "match_test.h"
 
+<<<<<<< Updated upstream
 // demo
 static int demo(const std::string& imagePath1, const std::string& imagePath2)
+=======
+static int demo(const std::string &imagePath1, const std::string &imagePath2)
+>>>>>>> Stashed changes
 {
     std::cout << "========================================" << std::endl;
     std::cout << "GaLAM Implementation" << std::endl;
     std::cout << "========================================\n"
-        << std::endl;
+              << std::endl;
 
     if (imagePath1.empty() || imagePath2.empty())
     {
@@ -71,18 +75,31 @@ static int demo(const std::string& imagePath1, const std::string& imagePath2)
     // Detect SIFT features
     std::cout << "\nDetecting SIFT features..." << std::endl;
     cv::Ptr<cv::SIFT> sift = cv::SIFT::create();
+
+    // Detect ORB features
+    // std::cout << "\nDetecting ORB features..." << std::endl;
+    // // ORB parameters: you can tune nfeatures if needed
+    // cv::Ptr<cv::ORB> orb = cv::ORB::create(
+    //     5000, // number of features
+    //     1.2f, // scale factor
+    //     8     // pyramid levels
+    // );
+
     std::vector<cv::KeyPoint> keypoints1, keypoints2;
     cv::Mat descriptors1, descriptors2;
 
     sift->detectAndCompute(gray1, cv::noArray(), keypoints1, descriptors1);
     sift->detectAndCompute(gray2, cv::noArray(), keypoints2, descriptors2);
+    // orb->detectAndCompute(gray1, cv::noArray(), keypoints1, descriptors1);
+    // orb->detectAndCompute(gray2, cv::noArray(), keypoints2, descriptors2);
 
     std::cout << "  Keypoints detected: " << keypoints1.size()
-        << " and " << keypoints2.size() << std::endl;
+              << " and " << keypoints2.size() << std::endl;
 
     // Initial matching
     std::cout << "\nPerforming initial matching..." << std::endl;
     cv::BFMatcher matcher(cv::NORM_L2);
+    // cv::BFMatcher matcher(cv::NORM_HAMMING);
     std::vector<cv::DMatch> initialMatches;
     matcher.match(descriptors1, descriptors2, initialMatches);
     std::cout << "  Initial matches: " << initialMatches.size() << std::endl;
@@ -99,9 +116,9 @@ static int demo(const std::string& imagePath1, const std::string& imagePath2)
         cv::Size(img1.cols, img1.rows),
         cv::Size(img2.cols, img2.rows));
 
-    const auto& seedMatches = results.seedMatches;
-    const auto& stage1Matches = results.stage1Matches;
-    const auto& finalMatches = results.finalMatches;
+    const auto &seedMatches = results.seedMatches;
+    const auto &stage1Matches = results.stage1Matches;
+    const auto &finalMatches = results.finalMatches;
 
     // Results summary
     std::cout << "\n========================================" << std::endl;
@@ -119,7 +136,7 @@ static int demo(const std::string& imagePath1, const std::string& imagePath2)
     }
     std::cout << "  Outliers removed:  " << (initialMatches.size() - finalMatches.size()) << std::endl;
     std::cout << "  Reduction:         " << std::fixed << std::setprecision(1)
-        << reductionPercent << "%" << std::endl;
+              << reductionPercent << "%" << std::endl;
     std::cout << "========================================" << std::endl;
 
     // Visualization
@@ -128,25 +145,25 @@ static int demo(const std::string& imagePath1, const std::string& imagePath2)
 
     // 1. Initial matches
     cv::drawMatches(img1, keypoints1, img2, keypoints2, initialMatches, output,
-        cv::Scalar(0, 255, 255));
+                    cv::Scalar(0, 255, 255));
     cv::imwrite("galam_1_initial.jpg", output);
     std::cout << "  Saved: galam_1_initial.jpg" << std::endl;
 
     // 2. Seed points
     cv::drawMatches(img1, keypoints1, img2, keypoints2, seedMatches, output,
-        cv::Scalar(255, 100, 0));
+                    cv::Scalar(255, 100, 0));
     cv::imwrite("galam_2_seeds.jpg", output);
     std::cout << "  Saved: galam_2_seeds.jpg" << std::endl;
 
     // 3. Stage 1 inliers
     cv::drawMatches(img1, keypoints1, img2, keypoints2, stage1Matches, output,
-        cv::Scalar(255, 255, 0));
+                    cv::Scalar(255, 255, 0));
     cv::imwrite("galam_3_stage1.jpg", output);
     std::cout << "  Saved: galam_3_stage1.jpg" << std::endl;
 
     // 4. Stage 2 final matches
     cv::drawMatches(img1, keypoints1, img2, keypoints2, finalMatches, output,
-        cv::Scalar(0, 255, 0));
+                    cv::Scalar(0, 255, 0));
     cv::imwrite("galam_4_final.jpg", output);
     std::cout << "  Saved: galam_4_final.jpg" << std::endl;
 
@@ -157,11 +174,13 @@ int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        std::cout << "Usage: " << argv[0] << " <data_path> [output.csv]\nor\n" << argv[0] << "match <imgpath1> <imgpath2>\n";
+        std::cout << "Usage: " << argv[0] << " <data_path> [output.csv]\nor\n"
+                  << argv[0] << "match <imgpath1> <imgpath2>\n";
         return 1;
     }
 
-    if (argc == 4) {
+    if (argc == 4)
+    {
         std::cout << "Matching: " << argv[2] << " with " << argv[3] << std::endl;
         std::string path1 = std::string(argv[2]);
         std::string path2 = std::string(argv[3]);

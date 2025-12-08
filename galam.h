@@ -32,6 +32,11 @@
  * - The code is structured to allow easy modification of parameters and integration
  * with other systems
  * - Error handling is implemented to manage potential issues during processing
+<<<<<<< Updated upstream
+=======
+ *
+ * Future Work: Implement OpenCV outlier detection interface
+>>>>>>> Stashed changes
  */
 
 #ifndef GALAM_H
@@ -73,11 +78,14 @@ public:
             double l1 = 4.0,
             double l2 = 2.0,
             double l3 = 0.8,
-            double ta = 20.0,
+            // double ta = 20.0,
+            double ta = 10.0,
             double ts = 0.5,
             double finalRT = 0.9,
             int iters = 128,
-            int sample = 8) : ratio(rat), rt_threshold(rt), epsilon(eps), lambda1(l1), lambda2(l2), lambda3(l3), tAlpha(ta), tSigma(ts), finalRTThreshold(finalRT), num_iterations(iters), minSampleSize(sample) {}
+            int sample = 8) : ratio(rat), rt_threshold(rt), epsilon(eps), lambda1(l1), lambda2(l2), lambda3(l3), tAlpha(ta), tSigma(ts), finalRTThreshold(finalRT), num_iterations(iters), minSampleSize(sample)
+        {
+        }
     };
 
     // Constructor
