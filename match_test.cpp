@@ -1,5 +1,10 @@
 /*
  * match_test.cpp
+ * Implements the GaLAM outlier detection algorithm in C++
+ * Implementation authors: Yu Dinh, Neha Kotwal, Anoop Prasad
+ * Paper title: GaLAM: Two-Stage Outlier Detection Algorithm
+ * Paper authors: X. Lu, Z. Yan, Z. Fan
+ * 
  
  *
  * This file runs a benchmarking experiment for different:
@@ -15,9 +20,7 @@
  */
 
 #include "match_test.h"
-
 #include<opencv2/xfeatures2d.hpp>
-
 #include <fstream>
 #include <filesystem>
 #include <chrono>
@@ -77,7 +80,7 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
     const std::vector<cv::DMatch>& matches,
     const std::vector<cv::DMatch>& nnMatches,
     const cv::Size& sz1, const cv::Size& sz2, double& runtime_ms) {
-    //  Start timer for this method
+    // Start timer for this method
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<cv::DMatch> result;
 
@@ -235,7 +238,6 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
     };
 
     // Load image with .ppm or .pgm extension
-
 
     auto loadImage = [](const std::string& base) {
         cv::Mat img = cv::imread(base + ".ppm", cv::IMREAD_GRAYSCALE);
