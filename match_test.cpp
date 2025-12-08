@@ -97,15 +97,11 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
             cv::xfeatures2d::matchGMS(imageSize1, imageSize2, kp1, kp2, matches, result, true, true, 3.0);
             break;
 
-        case Method::LOGOS:
-
-            break;
-
         case Method::GALAM: 
             // Our custom GaLAM implementation: two-stage outlier detection.
             // 1) Local affine verification around seed matches.
             // 2) Global geometric verification with PROSAC + fundamental matrix.
-            GaLAM::InputParameters params;// uses default parameters
+            GaLAM::InputParameters params(100, 0.8, 1.0, 4.0, 2.0, 0.8, 20.0, 0.5, 128, 8);// uses default parameters
             GaLAM galam(params);
             std::vector<cv::KeyPoint> k1 = kp1, k2 = kp2;
             // detectOutliers returns a struct here we only need the final matches
@@ -219,9 +215,6 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
         
         case Method::GMS:
             return "GMS";
-        
-        case Method::LOGOS:
-            return "LOGOS";
         
         case Method::GALAM:
             return "GaLAM";
