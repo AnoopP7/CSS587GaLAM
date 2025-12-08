@@ -32,8 +32,6 @@
  * - The code is structured to allow easy modification of parameters and integration
  * with other systems
  * - Error handling is implemented to manage potential issues during processing
- *
- * TODO: Implement OpenCV outlier detection interface if possible
  */
 
 #include "galam.h"
@@ -143,7 +141,7 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
         const cv::DMatch &bestMatch = knn12[i][0];
         const cv::DMatch &secondBestMatch = knn12[i][1];
 
-        // Apply ratio test (TODO: Should we have this?)
+        // Apply ratio test -- not explicitly mentioned in the paper but seems to improve accuracy
         if (bestMatch.distance >= params_.rt_threshold * secondBestMatch.distance)
             continue;
 

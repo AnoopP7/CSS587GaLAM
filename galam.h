@@ -32,8 +32,6 @@
  * - The code is structured to allow easy modification of parameters and integration
  * with other systems
  * - Error handling is implemented to manage potential issues during processing
- *
- * TODO: Implement OpenCV outlier detection interface if possible
  */
 
 #ifndef GALAM_H
@@ -132,7 +130,6 @@ private:
     InputParameters params_;
     double radius1, radius2;
 
-    // TODO: If time, refactor into an object so that we can easily have get/setX and get/setY
     struct ScoredMatch
     {
         cv::DMatch match;
