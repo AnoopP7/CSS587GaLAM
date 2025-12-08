@@ -1,5 +1,5 @@
 /*
- * test_main.cpp
+ * main.cpp
  * CSS587 Design Project - GaLAM Testing
  * Implementation authors: Yu Dinh, Neha Kotwal, Anoop Prasad
  * Paper title: GaLAM: Two-Stage Outlier Detection Algorithm
@@ -17,6 +17,9 @@
 
 
 // demo
+// Simply finds matches between two images, for testing and demo purposes
+// Preconditions: Valid paths to two images are provided
+// Postconditions: Logs of GaLAM progress are output to console and visualizations are saved to computer
 static int demo(const std::string &imagePath1, const std::string &imagePath2)
 {
     std::cout << "========================================" << std::endl;
@@ -24,11 +27,12 @@ static int demo(const std::string &imagePath1, const std::string &imagePath2)
     std::cout << "========================================\n"
               << std::endl;
 
+    // Check that two paths were given
     if (imagePath1.empty() || imagePath2.empty())
     {
         std::cerr << "Need to provide two image paths. Received:" << std::endl;
-        std::cerr << imagePath1 << std::endl;
-        std::cerr << imagePath2 << std::endl;
+        std::cerr << "Image 1: " << imagePath1 << std::endl;
+        std::cerr << "Image 2: " << imagePath2 << std::endl;
     }
 
     // Load images
@@ -45,6 +49,7 @@ static int demo(const std::string &imagePath1, const std::string &imagePath2)
     std::cout << "  Image 1: " << img1.cols << "x" << img1.rows << std::endl;
     std::cout << "  Image 2: " << img2.cols << "x" << img2.rows << std::endl;
 
+    // Scale down images for faster computation
     double scalingFactor = 0.5;
     cv::resize(img1, img1, cv::Size(), scalingFactor, scalingFactor);
     cv::resize(img2, img2, cv::Size(), scalingFactor, scalingFactor);
@@ -101,7 +106,7 @@ static int demo(const std::string &imagePath1, const std::string &imagePath2)
     matcher.match(descriptors1, descriptors2, initialMatches);
     std::cout << "  Initial matches: " << initialMatches.size() << std::endl;
 
-    // Apply GaLAM
+    // Apply GaLAM filtering
     std::cout << "\nApplying GaLAM filtering..." << std::endl;
     GaLAM::InputParameters params(100, 0.8, 1.0, 3.0, 3.0, 0.8, 10.0, 0.5, 0.9, 128, 8);
     //GaLAM::InputParameters params(100, 0.8, 1.0, 3.0, 3.0, 1.1, 10.0, 0.5, 0.9, 128, 8);
@@ -137,7 +142,7 @@ static int demo(const std::string &imagePath1, const std::string &imagePath2)
               << reductionPercent << "%" << std::endl;
     std::cout << "========================================" << std::endl;
 
-    // Visualization
+    // Generate visualizations
     std::cout << "\nGenerating visualizations..." << std::endl;
     cv::Mat output;
 
@@ -168,8 +173,14 @@ static int demo(const std::string &imagePath1, const std::string &imagePath2)
     return 0;
 }
 
+// main
+// Runs GaLAM filtering, either on the Oxford dataset or two provided images
+// Preconditions: Either two arguments of the data path and output file path are provided to use the Oxford dataset,
+//          or three arguments of "match" followed by two image file paths for demo purposes
+// Postconditions: Either Oxford results or image matching results are output and saved based on command line arguments
 int main(int argc, char **argv)
 {
+    // Not enough arguments
     if (argc < 2)
     {
         std::cout << "Usage: " << argv[0] << " <data_path> [output.csv]\nor\n"
@@ -177,6 +188,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    // Simple image matching demo
     if (argc == 4)
     {
         std::cout << "Matching: " << argv[2] << " with " << argv[3] << std::endl;
@@ -185,6 +197,7 @@ int main(int argc, char **argv)
         return demo(path1, path2);
     }
 
+    // Create tester and run tests on Oxford dataset
     MatchTest tester(
         {MatchTest::Detector::SIFT},
         {MatchTest::Method::NN_RT, MatchTest::Method::RANSAC, MatchTest::Method::GMS, MatchTest::Method::GALAM});
