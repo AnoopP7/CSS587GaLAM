@@ -51,13 +51,12 @@ public:
     // Initializes the test framework with specified detectors and methods
     // Preconditions: detectors and methods vectors are non-empty
     // Postconditions: MatchTest object is ready to run tests
-    
+    MatchTest(const std::vector<Detector>& detectors, const std::vector<Method>& methods);
+
     // runTests
     // Executes the full benchmark suite on the Oxford Affine Dataset
     // Preconditions: dataPath contains valid Oxford Affine Dataset structure
     // Postconditions: Results are printed to console and saved to CSV file
-    
-    MatchTest(const std::vector<Detector>& detectors, const std::vector<Method>& methods);
     void runTests(const std::string& dataPath, const std::string& csvPath);
 
 private:
