@@ -124,11 +124,8 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
 {
     std::vector<std::vector<cv::DMatch>> knn12, knn21;
 
-<<<<<<< Updated upstream
+
     // Could be made faster by using external match results
-=======
-    // If slow, FLANN instead
->>>>>>> Stashed changes
     cv::BFMatcher matcher(cv::NORM_L2);
     matcher.knnMatch(descriptors1, descriptors2, knn12, 2);
     matcher.knnMatch(descriptors2, descriptors1, knn21, 2);
@@ -476,8 +473,8 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             neigh.insert(static_cast<int>(i));
         }
 
-        // std::cout << "GaLAM: Neighborhood " << s
-        //           << " size = " << neigh.size() << std::endl;
+         std::cout << "GaLAM: Neighborhood " << s
+                   << " size = " << neigh.size() << std::endl;
     }
 
     return neighborhoods;

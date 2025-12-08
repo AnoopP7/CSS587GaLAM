@@ -15,12 +15,9 @@
 #include "galam.h"
 #include "match_test.h"
 
-<<<<<<< Updated upstream
+
 // demo
-static int demo(const std::string& imagePath1, const std::string& imagePath2)
-=======
 static int demo(const std::string &imagePath1, const std::string &imagePath2)
->>>>>>> Stashed changes
 {
     std::cout << "========================================" << std::endl;
     std::cout << "GaLAM Implementation" << std::endl;
@@ -106,7 +103,8 @@ static int demo(const std::string &imagePath1, const std::string &imagePath2)
 
     // Apply GaLAM
     std::cout << "\nApplying GaLAM filtering..." << std::endl;
-    GaLAM::InputParameters params;
+    GaLAM::InputParameters params(100, 0.8, 1.0, 3.0, 3.0, 0.8, 10.0, 0.5, 0.9, 128, 8);
+    //GaLAM::InputParameters params(100, 0.8, 1.0, 3.0, 3.0, 1.1, 10.0, 0.5, 0.9, 128, 8);
     GaLAM galam(params);
 
     GaLAM::StageResults results = galam.detectOutliers(
