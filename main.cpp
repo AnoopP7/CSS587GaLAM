@@ -12,8 +12,10 @@
  * - Generate and save test results for analysis
  */
 
+#include "galam.h"
 #include "match_test.h"
 
+// demo
 static int demo(const std::string& imagePath1, const std::string& imagePath2)
 {
     std::cout << "========================================" << std::endl;

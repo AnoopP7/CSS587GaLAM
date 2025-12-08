@@ -120,11 +120,15 @@ std::vector<GaLAM::ScoredMatch> GaLAM::filterBidirectionalNN(
 {
     std::vector<std::vector<cv::DMatch>> knn12, knn21;
 
-    // If slow, FLANN instead
-    // TODO: Make sure we actually use the matches that we get with nearest neighbor matching initially to improve efficiency
+    // Could be made faster by using external match results
     cv::BFMatcher matcher(cv::NORM_L2);
     matcher.knnMatch(descriptors1, descriptors2, knn12, 2);
     matcher.knnMatch(descriptors2, descriptors1, knn21, 2);
+
+    // FLANN -- Not many matches
+    //cv::Ptr<cv::DescriptorMatcher> matcher = cv::FlannBasedMatcher::create();
+    //matcher->knnMatch(descriptors1, descriptors2, knn12, 2);
+    //matcher->knnMatch(descriptors2, descriptors1, knn21, 2);
 
     std::vector<ScoredMatch> validMatches;
 
@@ -189,7 +193,6 @@ void GaLAM::assignConfidenceScore(
     {
         double distance = std::max(static_cast<double>(scored.match.distance), 1e-6);
         double secondDistance = std::max(static_cast<double>(scored.secondMatch.distance), 1e-6);
-        // scored.confidence = 1.0 / distance;
         scored.confidence = 1.0 / (distance / secondDistance);
     }
 }
@@ -421,14 +424,18 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             double dy1 = kp1.pt.y - kp1Seed.pt.y;
             double d1 = std::sqrt(dx1 * dx1 + dy1 * dy1);
             if (d1 > lambda1 * R1)
+            {
                 continue;
+            }
 
             // Image 2 (uses per-seed R2)
             double dx2 = kp2.pt.x - kp2Seed.pt.x;
             double dy2 = kp2.pt.y - kp2Seed.pt.y;
             double d2 = std::sqrt(dx2 * dx2 + dy2 * dy2);
             if (d2 > lambda1 * R2_seed)
+            {
                 continue;
+            }
 
             // ----------------------------------------------------------------------
             // 2) Rotation + scale in log-domain (Eq. 2)
@@ -438,7 +445,9 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             double alphaCand = normalizeAngle(kp2.angle - kp1.angle);
             double dAlpha = std::fabs(normalizeAngle(alphaCand - alphaSeed));
             if (dAlpha > tAlpha)
+            {
                 continue;
+            }
 
             // scale ratio in candidate
             double sigma1C = std::max(static_cast<double>(kp1.size), 1e-6);
@@ -447,7 +456,9 @@ std::vector<std::set<int>> GaLAM::localNeighborhoodSelection(
             double ratio = sigmaCand / sigmaSeed;
 
             if (std::fabs(std::log(ratio)) > tSigma)
+            {
                 continue;
+            }
 
             // ----------------------------------------------------------------------
             // (Eq. 3 is omitted here; Eq. 1 + Eq. 2 already enforce locality and Eq. 3 is used to obtain R2)
@@ -657,13 +668,14 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         }
 
         // Use RANSAC to fit the affine transformation matrix
-        // Note: Paper run PROSAC with 128 interations
+        // Note: Paper runs PROSAC with 128 interations
         // Here, we use RANSAC with num_iterations from params
         // Calls estimateAffinePartial2D() repeatedly, which internally does its own RANSAC on all points
         cv::Mat optimalTransformation;
         int bestScore = -1;
         for (int j = 0; j < params_.num_iterations; j++)
         {
+            // Carries out 1 RANSAC iteration to be evaluated
             cv::Mat transformation = cv::estimateAffinePartial2D(points1, points2, cv::noArray(), cv::RANSAC, 3, 1, 0.99, 10);
 
             // Find the residual rk for each correspondence point pair in the neighborhood if we found a transformation
@@ -699,7 +711,6 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
         transforms.push_back(optimalTransformation);
 
         // Candidate correspondences with residuals below threshold are kept, others removed
-        // need to iterate through matches, check if their residual was less than threshold, and keep if so
         std::vector<int> toRemove;
         for (int match : neighborhoods[neighborhood])
         {
@@ -708,7 +719,7 @@ std::vector<cv::Mat> GaLAM::fitTransformationMatrix(
             // Compare rk against threshold and remove the match if above threshold
             if (rk > threshold)
             {
-                toRemove.push_back(match); // TODO: Make sure this actually erases the correct element
+                toRemove.push_back(match);
             }
         }
 
@@ -768,7 +779,6 @@ double GaLAM::measureAffineResidual(
     cv::Mat result = (transformation * matPoint1) - matPoint2;
 
     // Get norm of resulting vector
-    // TODO: Should this be L2 norm or something else?
     double residual = cv::norm(result, cv::NORM_L2);
 
     return residual;
@@ -901,13 +911,13 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
         }
 
         // Fit fundamental matrix using 8-point algorithm
-        cv::Mat F = cv::findFundamentalMat(pts1, pts2, cv::FM_8POINT);
-        if (F.empty())
+        cv::Mat fundamental = cv::findFundamentalMat(pts1, pts2, cv::FM_8POINT);
+        if (fundamental.empty())
             continue;
 
         // Evaluate model over all seed points
-        cv::Matx33d Fm;
-        F.convertTo(Fm, CV_64F);
+        cv::Matx33d fundM;
+        fundamental.convertTo(fundM, CV_64F);
 
         // Count inliers among all seed points
         std::vector<bool> seedInlier(numSeeds, false);
@@ -926,7 +936,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
             cv::Vec3d xp(kp2.pt.x, kp2.pt.y, 1.0);
 
             // Epipolar line in image 2: l' = F * x
-            cv::Vec3d l = Fm * x;
+            cv::Vec3d l = fundM * x;
             double a = l[0], b = l[1], c = l[2];
 
             // Compute distance from point to epipolar line
@@ -936,10 +946,10 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
 
             // Distance r = |a*x' + b*y' + c| / sqrt(a^2 + b^2)
             double num = std::fabs(a * xp[0] + b * xp[1] + c);
-            double r = num / denom;
+            double residual = num / denom;
 
             // Check inlier condition
-            if (r <= epsilon)
+            if (residual <= epsilon)
             {
                 seedInlier[i] = true;
                 ++supportCount;
@@ -955,8 +965,7 @@ std::vector<cv::DMatch> GaLAM::globalGeometryVerification(
         modelSeedInliers.push_back(std::move(seedInlier));
     }
 
-    // After RANSAC, check if any models were generated
-    // and find the maximum support
+    // After RANSAC, check if any models were generated and find the maximum support
     if (modelSupports.empty())
     {
         std::cerr << "[ERROR] GaLAM Stage 2 (RANSAC): No valid fundamental "

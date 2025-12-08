@@ -24,7 +24,11 @@
 #include <iomanip>
 
 namespace fs = std::filesystem;
-/// Constructor simply stores which detectors and methods we want to test
+
+// Constructor
+// Stores which detectors and methods we want to test
+// Preconditions: Valid parameters are provided
+// Postconditions: Creates MatchTest object based on provided parameters
 MatchTest::MatchTest(const std::vector<Detector>& detectors, const std::vector<Method>& methods)
     : detectors_(detectors), methods_(methods) {}
 /**
@@ -40,9 +44,17 @@ void MatchTest::getFeatures(const cv::Mat& img, Detector det,
                             std::vector<cv::KeyPoint>& kp, cv::Mat& desc) {
     cv::Ptr<cv::Feature2D> feature;
     switch (det) {
-        case Detector::SIFT:  feature = cv::SIFT::create(); break;
-        case Detector::ORB:   feature = cv::ORB::create(5000); break;
-        case Detector::AKAZE: feature = cv::AKAZE::create(); break;
+        case Detector::SIFT:
+            feature = cv::SIFT::create();
+            break;
+
+        case Detector::ORB:
+            feature = cv::ORB::create(5000);
+            break;
+
+        case Detector::AKAZE:
+            feature = cv::AKAZE::create();
+            break;
     }
     feature->detectAndCompute(img, cv::noArray(), kp, desc);
 }
@@ -198,7 +210,7 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
     auto loadHomography = [](const std::string& path) {
         cv::Mat homography = cv::Mat::eye(3,3,CV_64F);
         std::ifstream input(path);
-        if (input) for (int i = 0; i < 9; ++i) input >> homography.at<double>(i/3, i%3);
+        if (input) for (int i = 0; i < 9; ++i) input >> homography.at<double>(i / 3, i % 3);
         // If loading failed, return empty Mat so caller can skip
         return input ? homography : cv::Mat();
     };
