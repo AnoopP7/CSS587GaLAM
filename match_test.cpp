@@ -138,7 +138,7 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(
             // Our custom GaLAM implementation: two-stage outlier detection.
             // 1) Local affine verification around seed matches.
             // 2) Global geometric verification with PROSAC + fundamental matrix.
-            GaLAM::InputParameters params;// uses default parameters
+            GaLAM::InputParameters params(100, 0.8, 1.0, 4.0, 2.0, 0.9, 20.0, 0.5, 0.9, 128, 8);
             GaLAM galam(params);
             std::vector<cv::KeyPoint> k1 = kp1, k2 = kp2;
             // detectOutliers returns a struct here we only need the final matches
