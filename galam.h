@@ -67,7 +67,7 @@ public:
         double tSigma;                    // max scale difference
         int num_iterations;               // iterations for RANSAC
         int minSampleSize;                // 8-points algorithm (8 pairs)
-        double finalRTThreshold;
+        double finalRTThreshold;          // Threshold for final ratio test
         InputParameters(
             double rat = 100,
             double rt = 0.8,
