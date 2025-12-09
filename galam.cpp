@@ -25,7 +25,7 @@
  *    - Use RANSAC to fit a global geometric model (fundamental matrix)
  *    - Evaluate the model over all seed points and their neighborhoods
  *    - Select strong models and corresponding inlier matches
- *    - Final RT thresholding to filter matches 0.9 to ensure no bad matches passed through
+ *    - Final RT thresholding to filter matches if too many exist to remove bad matches
  *    - Return the final set of inlier matches after both stages
  *
  * Note:
@@ -33,11 +33,6 @@
  * - The code is structured to allow easy modification of parameters and integration
  * with other systems
  * - Error handling is implemented to manage potential issues during processing
-<<<<<<< Updated upstream
-=======
- *
- * Future Work: Implement OpenCV outlier detection interface
->>>>>>> Stashed changes
  */
 
 #include "galam.h"
@@ -63,7 +58,7 @@
  * GaLAM object
  */
 GaLAM::GaLAM(const InputParameters &params)
-    : params_(params), radius1(1.0), radius2(1.0) {}
+    : params_(params) {}
 
 // selectSeedPoints
 // Selects seed points to be used throughout the algorithm

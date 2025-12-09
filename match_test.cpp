@@ -1,15 +1,16 @@
 /*
  * match_test.cpp
- * Implements the GaLAM outlier detection algorithm in C++
+ * Implements testing for comparing the GaLAM outlier detection algorithm to others
  * Implementation authors: Yu Dinh, Neha Kotwal, Anoop Prasad
  * Paper title: GaLAM: Two-Stage Outlier Detection Algorithm
  * Paper authors: X. Lu, Z. Yan, Z. Fan
- * 
- 
+ *
+ * This file defines the MatchTest class for benchmarking feature matching
+ * and outlier detection algorithms on the Oxford Affine Dataset.
  *
  * This file runs a benchmarking experiment for different:
  *   - feature descriptors such as SIFT / ORB / AKAZE, and
- *   - outlier-removal methods like NN+RT, RANSAC, GaLAM.
+ *   - outlier-removal methods like NN+RT, RANSAC, GMS, and GaLAM.
  *
  * For each scene and image pair, it:
  *   1. Detects features + descriptors in both images.
@@ -20,10 +21,13 @@
  */
 
 #include "match_test.h"
-#include<opencv2/xfeatures2d.hpp>
-#include <fstream>
-#include <filesystem>
+
+#include <opencv2/features2d.hpp>
+#include <opencv2/xfeatures2d.hpp>
+
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
 
 namespace fs = std::filesystem;
@@ -34,17 +38,25 @@ namespace fs = std::filesystem;
 // Postconditions: Creates MatchTest object based on provided parameters
 MatchTest::MatchTest(const std::vector<Detector>& detectors, const std::vector<Method>& methods)
     : detectors_(detectors), methods_(methods) {}
-/**
- * Extract keypoints and descriptors from an image using a given detector.
- *
- * img   : input grayscale image
- * det   : which descriptor to use SIFT, ORB, AKAZE
- * kp    : output keypoints
- * desc  : output descriptors i.e.one row per keypoint
- */
 
-void MatchTest::getFeatures(const cv::Mat& img, Detector det,
-                            std::vector<cv::KeyPoint>& kp, cv::Mat& desc) {
+/**
+ * getFeatures
+ * Extract keypoints and descriptors from an image using a given detector.
+ * Preconditions: Valid parameters provided, and img is a grayscale image
+ * Postconditions: The kp and desc vector and Mat provided are populated with keypoints and descriptors
+ *
+ * Parameters:
+ * img   : input grayscale image
+ * det   : which descriptor to use from SIFT, ORB, AKAZE
+ * kp    : output keypoints
+ * desc  : output descriptors i.e. one row per keypoint
+ */
+void MatchTest::getFeatures(
+    const cv::Mat& img,
+    Detector det,
+    std::vector<cv::KeyPoint>& kp,
+    cv::Mat& desc)
+{
     cv::Ptr<cv::Feature2D> feature;
     switch (det) {
         case Detector::SIFT:
@@ -62,24 +74,33 @@ void MatchTest::getFeatures(const cv::Mat& img, Detector det,
     feature->detectAndCompute(img, cv::noArray(), kp, desc);
 }
 /**
- * Apply an outlier-filtering method to an initial set of matches.
+ * filterOutliers
+ * Applies specified outlier filtering method to initial matches.
+ * Preconditions: Valid keypoints, descriptors, matches, and other parameters provided
+ * Postconditions: Returns a filtered set of matches with outlier removal applied and sets runtime_ms
  *
+ * Parameters:
  * method   : which algorithm to use NN+RT baseline, RANSAC, GaLAM
  * kp1/kp2  : keypoints for image 1 and 2
  * d1/d2    : descriptors for image 1 and 2
  * matches  : initial matches after NN + ratio test
- * sz1/sz2  : image sizes (used by GaLAM)
+ * imageSize1/imageSize2  : image sizes (used by GaLAM)
  * runtime_ms: output – how long this filtering took, in milliseconds
  *
  * Returns a new set of matches after outlier removal.
  */
-std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
-    const std::vector<cv::KeyPoint>& kp1, const std::vector<cv::KeyPoint>& kp2,
-    const cv::Mat& d1, const cv::Mat& d2,
-    const cv::Size& imageSize1, const cv::Size& imageSize2,
+std::vector<cv::DMatch> MatchTest::filterOutliers(
+    Method method,
+    const std::vector<cv::KeyPoint>& kp1,
+    const std::vector<cv::KeyPoint>& kp2,
+    const cv::Mat& d1,
+    const cv::Mat& d2,
+    const cv::Size& imageSize1,
+    const cv::Size& imageSize2,
     const std::vector<cv::DMatch>& matches,
     const std::vector<cv::DMatch>& nnMatches,
-    const cv::Size& sz1, const cv::Size& sz2, double& runtime_ms) {
+    double& runtime_ms)
+{
     // Start timer for this method
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<cv::DMatch> result;
@@ -109,6 +130,7 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
             break;
 
         case Method::GMS:
+            // Calls OpenCV's built-in GMS implementation
             cv::xfeatures2d::matchGMS(imageSize1, imageSize2, kp1, kp2, matches, result, true, true, 3.0);
             break;
 
@@ -120,7 +142,7 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
             GaLAM galam(params);
             std::vector<cv::KeyPoint> k1 = kp1, k2 = kp2;
             // detectOutliers returns a struct here we only need the final matches
-            result = galam.detectOutliers(k1, k2, d1, d2, matches, sz1, sz2).finalMatches;
+            result = galam.detectOutliers(k1, k2, d1, d2, matches, imageSize1, imageSize2).finalMatches;
             break;
         
     }
@@ -130,8 +152,12 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
     return result;
 }
 /**
- * Evaluate how good the final matches are using the ground-truth homography.
+ * evaluateMatches
+ * Computes evaluation metrics by comparing matches against ground truth homography.
+ * Preconditions: Valid keypoints, matches, and ground truth homography are provided
+ * Postconditions: Returns Metrics struct with computed values for the matches provided
  *
+ * Parameters:
  * kp1, kp2      : keypoints in image 1 and 2
  * matches       : filtered matches we want to evaluate
  * gtHomography  : ground-truth homography that maps points in img1 -> img2
@@ -144,9 +170,12 @@ std::vector<cv::DMatch> MatchTest::filterOutliers(Method method,
  *   - runtime_ms      : passed-through timing
  */
 MatchTest::Metrics MatchTest::evaluateMatches(
-    const std::vector<cv::KeyPoint>& kp1, const std::vector<cv::KeyPoint>& kp2,
-    const std::vector<cv::DMatch>& matches, const cv::Mat& gtHomography, double runtime_ms) {
-    
+    const std::vector<cv::KeyPoint>& kp1,
+    const std::vector<cv::KeyPoint>& kp2,
+    const std::vector<cv::DMatch>& matches,
+    const cv::Mat& gtHomography,
+    double runtime_ms)
+{    
     Metrics met;
     met.correspondences = (int)matches.size();
     met.avg_error = 0.0;
@@ -185,8 +214,8 @@ MatchTest::Metrics MatchTest::evaluateMatches(
     return met;
 }
 /**
+ * runTests 
  * Main benchmarking loop:
- *
  *  - Iterates over HPatches-like scenes (bark, bikes, ...).
  *  - For each scene and each image pair (img1 vs img2..img6):
  *      * Loads ground-truth homography H1toX.
@@ -200,9 +229,12 @@ MatchTest::Metrics MatchTest::evaluateMatches(
  *  - Finally prints a summary table for:
  *      * viewpoint scenes (graf, wall)
  *      * illumination scenes (leuven)
+ * Preconditions: Path for dataset and results are provided, and the path for the dataset contains Oxford Affine dataset
+ * Postconditions: Outputs summary table of tests as well as logs and saves results and visualizations
  */
-void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath) {
-    // Scene names from HPatches dataset
+void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath)
+{
+    // Scene names from Oxford Affine dataset
     std::vector<std::string> scenes = {"bark","bikes","boat","graf","leuven","trees","ubc","wall"};
     
     // Open output CSV file and write header row
@@ -238,7 +270,6 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
     };
 
     // Load image with .ppm or .pgm extension
-
     auto loadImage = [](const std::string& base) {
         cv::Mat img = cv::imread(base + ".ppm", cv::IMREAD_GRAYSCALE);
         if (img.empty()) img = cv::imread(base + ".pgm", cv::IMREAD_GRAYSCALE);
@@ -310,7 +341,7 @@ void MatchTest::runTests(const std::string& dataPath, const std::string& csvPath
                 for (auto method : methods_) {
                     double rt;
                     // Apply method to filter outliers
-                    auto filtered = filterOutliers(method, kp1, kp2, d1, d2, img1.size(), img2.size(), matches, nnMatches, img1.size(), img2.size(), rt);
+                    auto filtered = filterOutliers(method, kp1, kp2, d1, d2, img1.size(), img2.size(), matches, nnMatches, rt);
                     // Evaluate filtered matches against ground-truth homography
                     Metrics met = evaluateMatches(kp1, kp2, filtered, gtHomography, rt);
 

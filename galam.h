@@ -5,7 +5,7 @@
  * Paper title: GaLAM: Two-Stage Outlier Detection Algorithm
  * Paper authors: X. Lu, Z. Yan, Z. Fan
  *
- *  * This file contains the implementation of the GaLAM class methods.
+ * This file contains the implementation of the GaLAM class methods.
  *
  * Purpose:
  * - Implement the GaLAM outlier detection algorithm
@@ -25,6 +25,7 @@
  *    - Use RANSAC to fit a global geometric model (fundamental matrix)
  *    - Evaluate the model over all seed points and their neighborhoods
  *    - Select strong models and corresponding inlier matches
+ *    - Final RT thresholding to filter matches if too many exist to remove bad matches
  *    - Return the final set of inlier matches after both stages
  *
  * Note:
@@ -32,11 +33,6 @@
  * - The code is structured to allow easy modification of parameters and integration
  * with other systems
  * - Error handling is implemented to manage potential issues during processing
-<<<<<<< Updated upstream
-=======
- *
- * Future Work: Implement OpenCV outlier detection interface
->>>>>>> Stashed changes
  */
 
 #ifndef GALAM_H
@@ -44,6 +40,7 @@
 
 #include <opencv2/core.hpp>
 #include <opencv2/features2d.hpp>
+
 #include <vector>
 #include <string>
 #include <set>
@@ -79,7 +76,6 @@ public:
             double l2 = 2.0,
             double l3 = 0.8,
             double ta = 20.0,
-            //double ta = 10.0,
             double ts = 0.5,
             double finalRT = 0.9,
             int iters = 128,
@@ -135,9 +131,10 @@ public:
         const cv::Size &imageSize2) const;
 
 private:
+    // InputParameters struct to hold parameters
     InputParameters params_;
-    double radius1, radius2;
 
+    // ScoredMatch struct for assigning a confidence score to a correspondence pair
     struct ScoredMatch
     {
         cv::DMatch match;

@@ -1,11 +1,12 @@
 /*
  * main.cpp
- * CSS587 Design Project - GaLAM Testing
+ * Tests the C++ implementation of the GaLAM method
  * Implementation authors: Yu Dinh, Neha Kotwal, Anoop Prasad
  * Paper title: GaLAM: Two-Stage Outlier Detection Algorithm
  * Paper authors: X. Lu, Z. Yan, Z. Fan
  *
- * This file contains the main function to run GaLAM tests over a dataset.
+ * This file contains the main function to run GaLAM tests over a dataset,
+ * or two provided images for simple testing and demonstration.
  * Purpose:
  * - Provide a command-line interface for testing the GaLAM algorithm
  * - Facilitate the evaluation of different feature detectors and matching methods
@@ -15,6 +16,11 @@
 #include "galam.h"
 #include "match_test.h"
 
+#include <opencv2/core.hpp>
+#include <opencv2/features2d.hpp>
+
+#include <string>
+#include <vector>
 
 // demo
 // Simply finds matches between two images, for testing and demo purposes
