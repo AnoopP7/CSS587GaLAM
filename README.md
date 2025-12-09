@@ -48,8 +48,10 @@ Input Images → Keypoint Detection → Descriptor Matching
                             │  ┌─────────────────────┐    │
                             │  │ Global Geometric    │    │
                             │  │ Consistency         │    │
-                            │  │ • Fundamental Matrix│    │
-                            │  │ • RANSAC Fitting    │    │
+                            │  │ • Fit Fundamental   │    │
+                            │  │   Matrix.           │    │
+                            │  │ • Evaluate Seeds    │    │
+                            │  │ • Filter Outliers   │    │
                             │  └──────────┬──────────┘    │
                             │             ↓               │
                             │  ┌─────────────────────┐    │
