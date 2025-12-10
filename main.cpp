@@ -84,9 +84,12 @@ static int demo(const std::string &imagePath1, const std::string &imagePath2)
     std::cout << "\nDetecting SIFT features..." << std::endl;
     cv::Ptr<cv::SIFT> sift = cv::SIFT::create();
 
+    // Detect Akaze features
+    // cv::Ptr<cv::AKAZE> akaze = cv::AKAZE::create();
+
     // Detect ORB features
     // std::cout << "\nDetecting ORB features..." << std::endl;
-    // // ORB parameters: you can tune nfeatures if needed
+    // ORB parameters: you can tune nfeatures if needed
     // cv::Ptr<cv::ORB> orb = cv::ORB::create(
     //     5000, // number of features
     //     1.2f, // scale factor
@@ -100,6 +103,8 @@ static int demo(const std::string &imagePath1, const std::string &imagePath2)
     sift->detectAndCompute(gray2, cv::noArray(), keypoints2, descriptors2);
     // orb->detectAndCompute(gray1, cv::noArray(), keypoints1, descriptors1);
     // orb->detectAndCompute(gray2, cv::noArray(), keypoints2, descriptors2);
+    // akaze->detectAndCompute(gray1, cv::noArray(), keypoints1, descriptors1);
+    // akaze->detectAndCompute(gray2, cv::noArray(), keypoints2, descriptors2);
 
     std::cout << "  Keypoints detected: " << keypoints1.size()
               << " and " << keypoints2.size() << std::endl;
@@ -115,7 +120,7 @@ static int demo(const std::string &imagePath1, const std::string &imagePath2)
     // Apply GaLAM filtering
     std::cout << "\nApplying GaLAM filtering..." << std::endl;
     GaLAM::InputParameters params(100, 0.8, 1.0, 3.0, 3.0, 0.8, 10.0, 0.5, 0.9, 128, 8);
-    //GaLAM::InputParameters params(100, 0.8, 1.0, 3.0, 3.0, 1.1, 10.0, 0.5, 0.9, 128, 8);
+    // GaLAM::InputParameters params(100, 0.8, 1.0, 3.0, 3.0, 1.1, 10.0, 0.5, 0.9, 128, 8);
     GaLAM galam(params);
 
     GaLAM::StageResults results = galam.detectOutliers(

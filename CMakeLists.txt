@@ -22,7 +22,7 @@ find_package(OpenCV REQUIRED)
 set(GALAM_SOURCES
     galam.cpp
     match_test.cpp
-    old_main.cpp
+    main.cpp
 )
 
 # Main executable

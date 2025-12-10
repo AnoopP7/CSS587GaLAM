@@ -74,7 +74,7 @@ public:
             double eps = 1.0,
             double l1 = 4.0,
             double l2 = 2.0,
-            double l3 = 0.8,
+            double l3 = 0.9,
             double ta = 20.0,
             double ts = 0.5,
             double finalRT = 0.9,

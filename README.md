@@ -1,32 +1,34 @@
-# 🎯 GaLAM
+# GaLAM
 
 C++ implementation of the **GaLAM** (Geometric and Local Affine Matching) outlier detection algorithm from the paper:
 
 **"GaLAM: Two-Stage Outlier Detection Algorithm"** by Xiaojun Lu, Zhe Yan, Ziyun Fan (IEEE Access 2025)
 
-📄 **Paper:** [https://ieeexplore.ieee.org/document/10967479](https://ieeexplore.ieee.org/document/10967479)
+**Paper:** [https://ieeexplore.ieee.org/document/10967479](https://ieeexplore.ieee.org/document/10967479)
 
-🎬 **Demo Presentation:** [Watch on Google Drive](https://drive.google.com/file/d/1BtqGpWlnIshK1C5TMOqit3nsoO-nU3aY/view?usp=drive_link)
+**Report:** [mplementing th GaLAM Outlier Detection Algorithm](report/Implementing th GaLAM Outlier Detection Algorithm.pdf)
+
+**Demo Presentation:** [Watch on Google Drive](https://drive.google.com/file/d/1BtqGpWlnIshK1C5TMOqit3nsoO-nU3aY/view?usp=drive_link)
 
 ---
 
 ## 📑 Table of Contents
 
-- [🔍 Overview](#-overview)
-- [✨ Key Features](#-key-features)
-- [🚀 Usage](#-usage)
-- [📊 Dataset](#-dataset)
-- [📈 Output](#-output)
-- [📁 Project Structure](#-project-structure)
-- [📊 Results](#-results)
-- [📚 References](#-references)
-- [👥 Authors](#-authors)
-- [📄 License](#-license)
-- [🙏 Acknowledgments](#-acknowledgments)
+- [Overview](#-overview)
+- [Key Features](#-key-features)
+- [Usage](#-usage)
+- [Dataset](#-dataset)
+- [Output](#-output)
+- [Project Structure](#-project-structure)
+- [Results](#-results)
+- [References](#-references)
+- [Authors](#-authors)
+- [License](#-license)
+- [Acknowledgments](#-acknowledgments)
 
 ---
 
-## 🔍 Overview
+## Overview
 
 GaLAM is a two-stage outlier detection algorithm for feature matching that combines local affine verification with global geometric consistency. It addresses limitations of existing methods like ratio test, RANSAC, and AdaLAM by introducing principled geometric constraints for filtering incorrect matches.
 
@@ -64,7 +66,7 @@ Input Images → Keypoint Detection → Descriptor Matching
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 - **Two-stage filtering** — Combines local affine verification with global geometric consistency
 - **Seed point selection** — Uses bidirectional nearest neighbor matching with non-maximum suppression
@@ -73,7 +75,7 @@ Input Images → Keypoint Detection → Descriptor Matching
 - **Multiple detector support** — Works with SIFT, ORB, and AKAZE feature detectors
 - **Comprehensive benchmarking** — Includes comparison against NN+RT, RANSAC, and GMS methods
 ---
-## 🚀 Usage
+## Usage
 
 ### Running Benchmark Tests
 
@@ -103,7 +105,7 @@ This generates visualization images showing:
 | `galam_3_stage1.jpg` | Matches after local affine verification |
 | `galam_4_final.jpg` | Final filtered matches |
 
-## 📊 Dataset
+## Dataset
 
 This implementation uses the [Oxford Affine Dataset](http://www.robots.ox.ac.uk/~vgg/research/affine/), which includes 8 scene categories:
 
@@ -139,7 +141,7 @@ data/
 
 ---
 
-## 📈 Output
+## Output
 
 ### Console Output
 
@@ -192,7 +194,7 @@ bark,1-2,RANSAC,1198,42.15,71.33,35.67,18.45
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 galam/
@@ -206,7 +208,7 @@ galam/
 ├── 📂 data/               # Oxford Affine Dataset
 ```
 
-## 📊 Results
+## Results
 
 Our implementation achieves results consistent with the paper:
 
@@ -218,14 +220,14 @@ Our implementation achieves results consistent with the paper:
 | **Runtime (ms)** | 180.23 | 19.16 | 31.68 | 0.00 |
 
 **Key Findings:**
-- ✅ **Highest accuracy**: GaLAM achieves ~89% inlier rate vs ~72-75% for other methods
-- ✅ **Lowest error**: Average projection error of ~11px vs ~35-70px for others
-- ✅ **Cleaner matches**: Produces fewer but higher-quality correspondences
-- ⚠️ **Trade-off**: Higher runtime (~180ms) due to two-stage verification
+- **Highest accuracy**: GaLAM achieves ~89% inlier rate vs ~72-75% for other methods
+- **Lowest error**: Average projection error of ~11px vs ~35-70px for others
+- **Cleaner matches**: Produces fewer but higher-quality correspondences
+- **Trade-off**: Higher runtime (~180ms) due to two-stage verification
 
 ---
 
-## 📚 References
+## References
 
 ```bibtex
 @ARTICLE{10967479,
@@ -246,7 +248,7 @@ Our implementation achieves results consistent with the paper:
 
 ---
 
-## 👥 Authors
+## Authors
 
 **Implementation by:**
 
@@ -256,19 +258,19 @@ Our implementation achieves results consistent with the paper:
 | **Anoop Prasad** | Developer |
 | **Yu Dinh** | Developer |
 
-🎓 **University of Washington Bothell**  
-📚 **CSS 587: Computer Vision**  
-📅 **Winter 2025**
+**University of Washington Bothell**  
+**CSS 587: Computer Vision**  
+**Winter 2025**
 
 ---
 
-## 📄 License
+## License
 
 This project is for educational purposes as part of CSS 587 coursework.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Original GaLAM paper authors: Xiaojun Lu, Zhe Yan, Ziyun Fan
 - [Visual Geometry Group](http://www.robots.ox.ac.uk/~vgg/) for the Oxford Affine Dataset
