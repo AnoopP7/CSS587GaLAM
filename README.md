@@ -6,7 +6,7 @@ C++ implementation of the **GaLAM** (Geometric and Local Affine Matching) outlie
 
 **Paper:** [https://ieeexplore.ieee.org/document/10967479](https://ieeexplore.ieee.org/document/10967479)
 
-**Report:** [mplementing th GaLAM Outlier Detection Algorithm](report/Implementing th GaLAM Outlier Detection Algorithm.pdf)
+**Report:** [Implementing the GaLAM Outlier Detection Algorithm](report/Implementing th GaLAM Outlier Detection Algorithm.pdf)
 
 **Demo Presentation:** [Watch on Google Drive](https://drive.google.com/file/d/1BtqGpWlnIshK1C5TMOqit3nsoO-nU3aY/view?usp=drive_link)
 
