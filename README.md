@@ -90,7 +90,7 @@ Run the full benchmark suite on the Oxford Affine Dataset:
 cd build
 
 # Run with Oxford dataset
-./test_galam ../data 
+./Galam ../data 
 ```
 
 ### Demo Mode
