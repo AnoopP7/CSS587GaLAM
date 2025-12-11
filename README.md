@@ -14,17 +14,17 @@ C++ implementation of the **GaLAM** (Geometric and Local Affine Matching) outlie
 
 ## 📑 Table of Contents
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Usage](#-usage)
-- [Dataset](#-dataset)
-- [Output](#-output)
-- [Project Structure](#-project-structure)
-- [Results](#-results)
-- [References](#-references)
-- [Authors](#-authors)
-- [License](#-license)
-- [Acknowledgments](#-acknowledgments)
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Usage](#usage)
+- [Dataset](#dataset)
+- [Output](#output)
+- [Project Structure](#project-structure)
+- [Results](#results)
+- [References](#references)
+- [Authors](#authors)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ---
 
