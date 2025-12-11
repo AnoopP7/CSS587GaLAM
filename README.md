@@ -12,7 +12,7 @@ C++ implementation of the **GaLAM** (Geometric and Local Affine Matching) outlie
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Key Features](#key-features)
@@ -30,7 +30,7 @@ C++ implementation of the **GaLAM** (Geometric and Local Affine Matching) outlie
 
 ## Overview
 
-GaLAM is a two-stage outlier detection algorithm for feature matching that combines local affine verification with global geometric consistency. It addresses limitations of existing methods like ratio test, RANSAC, and AdaLAM by introducing principled geometric constraints for filtering incorrect matches.
+GaLAM is a two-stage outlier detection algorithm for feature matching that combines local affine verification with global geometric consistency. It addresses limitations of existing methods like ratio test, RANSAC, and AdaLAM by introducing geometric constraints for filtering incorrect matches.
 
 ### Algorithm Pipeline
 
@@ -44,14 +44,16 @@ Input Images → Keypoint Detection → Descriptor Matching
                             │  │ Verification        │    │
                             │  │ • Seed Selection    │    │
                             │  │ • Neighborhood      │    │
-                            │  │ • Affine Fitting    │    │
+                            │  │   Selection         │    │
+                            │  │ • Affine            │    │
+                            │  │   Verification      │    │
                             │  └──────────┬──────────┘    │
                             │             ↓               │
                             │  ┌─────────────────────┐    │
                             │  │ Global Geometric    │    │
                             │  │ Consistency         │    │
                             │  │ • Fit Fundamental   │    │
-                            │  │   Matrix.           │    │
+                            │  │   Matrix            │    │
                             │  │ • Evaluate Seeds    │    │
                             │  │ • Filter Outliers   │    │
                             │  └──────────┬──────────┘    │
@@ -76,6 +78,9 @@ Input Images → Keypoint Detection → Descriptor Matching
 - **Comprehensive benchmarking** — Includes comparison against NN+RT, RANSAC, and GMS methods
 ---
 ## Usage
+
+### Requirements
+Requires C++17, OpenCV, and the OpenCV extra modules.
 
 ### Running Benchmark Tests
 
@@ -144,6 +149,7 @@ data/
 ## Output
 
 ### Console Output
+Console output is formatted as follows:
 
 ```
 Scene   Pair    Method  Corr    AvgErr  Inlier% Time(ms)
@@ -172,6 +178,7 @@ GaLAM       547.6       11.21       89.59       180.23
 ```
 
 ### Metrics
+The following metrics can be used for evaluation:
 
 | Metric | Description |
 |--------|-------------|
@@ -203,14 +210,15 @@ galam/
 ├── 📄 galam.h             # GaLAM class declaration
 ├── 📄 galam.cpp           # GaLAM algorithm implementation
 ├── 📄 match_test.h        # Testing framework declaration
-├── 📄 match_test.cpp      # Benchmarking implementation
+├── 📄 match_test.cpp      # Testing implementation
 ├── 📄 main.cpp            # Entry point and CLI
 ├── 📂 data/               # Oxford Affine Dataset
+├── 📂 report/             # Final report
 ```
 
 ## Results
 
-Our implementation achieves results consistent with the paper:
+Our implementation achieves results fairly consistent with the paper:
 
 | Metric | GaLAM | RANSAC | GMS | NN+RT |
 |--------|-------|--------|-----|-------|
